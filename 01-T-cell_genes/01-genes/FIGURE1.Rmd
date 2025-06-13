@@ -10,15 +10,13 @@ library(data.table)
 library(tidyverse)
 library(pheatmap)
 library(tidytext)
-#library(enrichR)
+#install.packages('https://cran.r-project.org/src/contrib/Archive/rjson/rjson_0.2.20.tar.gz', repos=NULL, type="source")
+library(enrichR)
 options(scipen=999)
 
 # Read in the median expression for each gene by cell subtype
 ranked_pc_filtered <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list_missingocrgenes_removedv2.tsv')
-
-types <- c('protein_coding','TR_C_gene','IG_C_gene')
-gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv') %>%
-  filter(type=='transcript',gene_type %in% types) %>% select(gene_id,gene_name) %>% unique()
+```
 
 ```{r expr_heatmap,fig_width=16.5,fig_height=11}
 #Top 22
@@ -32,11 +30,16 @@ top22_bottom22_matrix <- top22_bottom22 %>% select(-gene_group,-row,-set) %>% me
            variable=str_to_title(variable)) %>% 
   pivot_wider(names_from=variable, values_from=value) %>% column_to_rownames(var='gene_name') 
 
+scale_rows <-  function(x){
+    m = apply(x, 1, mean, na.rm = T)
+    s = apply(x, 1, sd, na.rm = T)
+    return((x - m) / s)
+}
+
 top22_bottom22_scaledrows <- scale_rows(top22_bottom22_matrix)
 
 paletteLength <- 15
 myColor <- colorRampPalette(c("#2166ac","#FBFEF9","#b2182b"))(paletteLength)
-# length(breaks) == length(paletteLength) + 1
 # use floor and ceiling to deal with even/odd length pallettelengths
 myBreaks <- c(seq(min(top22_bottom22_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
               seq(max(top22_bottom22_scaledrows)/paletteLength, max(top22_bottom22_scaledrows), length.out=floor(paletteLength/2)))
@@ -52,5 +55,46 @@ pheatmap(top22_bottom22_scaledrows, color=myColor, breaks=myBreaks,
          fontsize_col = 10,fontsize_row=9,fontsize = 12,clustering_method = 'ward',cutree_cols = 2,gaps_row = 22,angle_col = 90,
          annotation_row = row_annotation,
          annotation_colors = my_colours)
+
+
+perform_goterm <- function(gene_list,gene_list_name){
+  dbs <- c("GO_Biological_Process_2023")  
+  enriched <- enrichr(gene_list$gene_name,dbs)$GO_Biological_Process_2023
+  enriched <- enriched[order(enriched$Combined.Score,decreasing=TRUE),]
+  filtered_enriched <- enriched %>% filter(Adjusted.P.value <= 0.05) %>%
+    mutate(gene_group=gene_list_name) %>% head(n=10)
+  
+  matrix <- gene_list %>% transmute("Genes"=gene_name) %>% 
+    left_join(filtered_enriched %>% select(Genes,Term,Combined.Score) %>% separate_rows(Genes,sep=';'))  %>% 
+    pivot_wider(names_from = Genes, values_from = Combined.Score) %>% 
+    filter(!is.na(Term)) %>% 
+    pivot_longer(-Term, names_to = "Gene", values_to = "Score") %>% left_join(gene_list,by=c(Gene='gene_name')) %>%
+    group_by(Gene) %>% 
+    mutate(rank = dense_rank(desc(Score))) %>% 
+    ungroup() %>%
+    group_by(Term) %>%
+    mutate(max_score = max(Score, na.rm = TRUE)) %>% # Get max score per term
+    ungroup()
+  
+  min_nonzero <- min(matrix$Score[matrix$Score > 0], na.rm = TRUE)
+  max_score <- max(matrix$Score, na.rm = TRUE)
+  
+  filtered_enriched %>% 
+    separate_rows(Genes,sep=';') %>% group_by(Term) %>% mutate(n_gene=n_distinct(Genes)) %>% 
+    distinct(Term, Adjusted.P.value,Combined.Score,n_gene) %>% ungroup() %>%
+    ggplot(aes(x=n_gene,y=reorder(Term,n_gene),fill=Combined.Score))+
+    geom_bar(stat='identity')+
+    scale_fill_gradientn(colors = c("#67a9cf", "#016c59"),
+                         values = scales::rescale(c(min_nonzero, max_score)),
+                         limits = c(min_nonzero, max_score)) + 
+    theme_bw() + xlab("Number of Genes Associated with GO Term") +ylab("GO Term")+ xlim(0,10)+
+    theme(plot.title=element_text(hjust=0.5))+ labs(fill="Score")
+  
+}
+
+perform_goterm(top_22,"T-cell-specific")
+perform_goterm(bottom_22,"Bottom Ranked T-cell Genes")
+
+
 
 ```

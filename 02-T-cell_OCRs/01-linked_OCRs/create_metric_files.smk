@@ -31,7 +31,8 @@ rule all:
 		expand(f"{interaction_dir}""/{bin_size}/{gene_type}/interactions_tss_within.tsv",interaction_dir=interaction_dir,bin_size=bin_size,gene_type=gene_type),
 		expand(f"{interaction_dir}/""{bin_size}/{merge_param}/{gene_type}/interactions_tss_within_tidy.tsv",interaction_dir=interaction_dir,merge_param=merge_param,bin_size=bin_size,gene_type=gene_type),
 		expand(f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/{gene_type}/pulled_ocrs_master_by_gene.tsv",pulled_ocrs_out_dir_1=pulled_ocrs_out_dir_1,filtered_ocr_data_name=filtered_ocr_data_name,bin_size=bin_size,gene_type=gene_type,merge_param=merge_param),
-		expand(f"{filtered_gene_file_dir}/""ranked_{gene_type}_list_filtered+{filtered_ocr_data_name}+{bin_size}+{merge_param}.tsv",filtered_gene_file_dir=filtered_gene_file_dir,gene_type=gene_type,filtered_ocr_data_name=filtered_ocr_data_name,bin_size=bin_size,merge_param=merge_param)
+		expand(f"{filtered_gene_file_dir}/""ranked_{gene_type}_list_filtered+{filtered_ocr_data_name}+{bin_size}+{merge_param}.tsv",filtered_gene_file_dir=filtered_gene_file_dir,gene_type=gene_type,filtered_ocr_data_name=filtered_ocr_data_name,bin_size=bin_size,merge_param=merge_param),
+		expand(f"{ocr_metric_files_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/{gene_type}/pulled_ocrs_tss_dist.tsv",ocr_metric_files_out_dir_1=ocr_metric_files_out_dir_1,filtered_ocr_data_name=filtered_ocr_data_name,bin_size=bin_size,gene_type=gene_type,merge_param=merge_param)
 		
 # # # --------------------------------------------------------------
 # # # ANNOTATE OCR REGIONS
@@ -138,3 +139,20 @@ rule remove_genes:
 	shell:
 		"Rscript {input.script} --gene_file {params.gene_file} --pulled_ocr_file {input.pulled_ocr_file} "
 		"--outdir {params.outdir}"
+
+# # # --------------------------------------------------------------
+# # # CREATE METRIC FILES
+# # # --------------------------------------------------------------
+rule create_metric_files:
+	input:
+		linked_ocrs=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/{gene_type}/pulled_ocrs_master_by_gene.tsv"
+	params:
+		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/create.metric.files.R",
+		gencode=gencode,
+		gene_file=gene_list,
+		outdir=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/{gene_type}/"
+	output:
+		pulled_ocrs=f"{ocr_metric_files_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/{gene_type}/pulled_ocrs_tss_dist.tsv"
+	shell:
+		"Rscript {params.script} --linked_ocrs {input.linked_ocrs} --gene_file {params.gene_file} "
+		"--gencode {params.gencode} --outdir {params.outdir}"

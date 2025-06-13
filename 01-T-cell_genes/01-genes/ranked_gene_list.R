@@ -33,10 +33,10 @@ gene_df <- inner_join(tcell_df,nontcell_df) %>%
   arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
   arrange(desc(tsum)) %>% mutate(trank=1:nrow(.)) %>% 
   mutate(t_o_rank=trank+orank) %>% inner_join(gencode) %>%
-  arrange(t_o_rank)  %>%
-  mutate(rownumber=1:nrow(.)) %>%
-  mutate(gene_group=ifelse(rownumber<41, 'tcell_specific','non_specific')) %>% 
-  select(-rownumber)
+  arrange(t_o_rank)
+  mutate(rownumber=1:nrow(.))#
+  #mutate(gene_group=ifelse(rownumber<41, 'tcell_specific','non_specific')) %>% 
+  #select(-rownumber)
 
 
 fwrite(gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv',quote=FALSE,sep='\t')

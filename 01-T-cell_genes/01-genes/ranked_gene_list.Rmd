@@ -14,76 +14,15 @@ library(tidytext)
 options(scipen=999)
 
 # Read in the median expression for each gene by cell subtype
-median_expr <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv') %>% select(-cd4_n_stim,-cd8_n_stim)
 ranked_pc_filtered <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list_missingocrgenes_removedv2.tsv')
 
 types <- c('protein_coding','TR_C_gene','IG_C_gene')
 gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv') %>%
   filter(type=='transcript',gene_type %in% types) %>% select(gene_id,gene_name) %>% unique()
 
-# select for t cell samples, calculate the sum of medians (across each cell type) for each gene
-tcell_df <- median_expr %>% select(cd4_naive,cd8_naive,th17,`th1-17`,th1,tfh,th2,treg_memory,treg_naive,gene_id) %>% 
-  mutate(tsum=rowSums(across(where(is.numeric)))) 
-
-# select the non-t cell samples, calculate the sum of medians (across each cell type) for each gene
-nontcell_df <- median_expr %>% select(-cd4_naive,-cd8_naive,-th17,-`th1-17`,-th1,-tfh,-th2,-treg_memory,-treg_naive,-gene_name)  %>% 
-  mutate(osum=rowSums(across(where(is.numeric)))) 
-
-#get the median of the sum of median for t cells. use as a filter to remove genes with insufficient expression in t cells
-tcell_median <-median(tcell_df$tsum)
-
-#combine the two dataframe, remove genes where their expression is below the median of tsum
-#arrage in ascending order by the non-tcell sum (osum), rank.
-#arrage in descending order by the tcell sum (tsum), rank.
-#get the rank sums (combining the trank and orank)
-#get the gene names
-#order based on the rowsums in ascending order.
-gene_df <- inner_join(tcell_df,nontcell_df) %>%
-  filter(tsum > tcell_median) %>% 
-  arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
-  arrange(desc(tsum)) %>% mutate(trank=1:nrow(.)) %>% 
-  mutate(t_o_rank=trank+orank) %>% inner_join(gencode) %>%
-  arrange(t_o_rank)  %>%
-  mutate(rownumber=1:nrow(.)) %>%
-  mutate(gene_group=ifelse(rownumber<41, 'tcell_specific','non_specific')) %>% 
-  select(-rownumber)
-
-#fwrite(gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv',quote=FALSE,sep='\t')
-
-```
-
 ```{r expr_heatmap,fig_width=16.5,fig_height=11}
 #Top 22
 top_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% head(n=22) %>% mutate(set='Top 22 Genes')
-
-top_22_matrix <- top_22 %>% select(-gene_group,-set,-row) %>% melt() %>% 
-    mutate(variable=gsub("_n_"," ",variable),
-           variable=gsub("_"," ",variable),
-           variable=str_to_title(variable)) %>% 
-  pivot_wider(names_from=variable, values_from=value) %>% column_to_rownames(var='gene_name') 
-
-scale_rows <-  function(x){
-    m = apply(x, 1, mean, na.rm = T)
-    s = apply(x, 1, sd, na.rm = T)
-    return((x - m) / s)
-}
-top22_scaledrows <- scale_rows(top_22_matrix)
-
-paletteLength <- 25
-myColor <- colorRampPalette(c('#2b8cbe', "white", "#54278f"))(paletteLength)
-# length(breaks) == length(paletteLength) + 1
-# use floor and ceiling to deal with even/odd length pallettelengths
-myBreaks <- c(seq(min(top22_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
-              seq(max(top22_scaledrows)/paletteLength, max(top22_scaledrows), length.out=floor(paletteLength/2)))
-
-# Plot the heatmap
-pheatmap(top22_scaledrows, color=myColor, breaks=myBreaks,
-         show_rownames = TRUE,cluster_rows = FALSE,
-         main="Gene Expression of T-cell Specific Genes Across Cell Types",
-         fontsize_col = 12,fontsize = 12,clustering_method = 'ward',cutree_cols = 2)
-
-######################
-#Top 22 * bottom 22
 bottom_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% tail(n=22) %>% mutate(set='Bottom 10 Genes')
 top22_bottom22 <- rbind(top_22,bottom_22)
 
@@ -97,7 +36,6 @@ top22_bottom22_scaledrows <- scale_rows(top22_bottom22_matrix)
 
 paletteLength <- 15
 myColor <- colorRampPalette(c("#2166ac","#FBFEF9","#b2182b"))(paletteLength)
-#myColor <- colorRampPalette(c('#2b8cbe', "white", "#54278f"))(paletteLength)
 # length(breaks) == length(paletteLength) + 1
 # use floor and ceiling to deal with even/odd length pallettelengths
 myBreaks <- c(seq(min(top22_bottom22_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
@@ -115,5 +53,4 @@ pheatmap(top22_bottom22_scaledrows, color=myColor, breaks=myBreaks,
          annotation_row = row_annotation,
          annotation_colors = my_colours)
 
-```
 ```

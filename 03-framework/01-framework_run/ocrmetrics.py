@@ -41,14 +41,14 @@ def init(source_data_dir, functions_to_load,num_motifs):
     global feature_list
 
     ## get file paths
-    repeatmasker_file = os.path.join(source_data_dir, "rmsk_filtered.txt")
-    ocr_group_specific_file = os.path.join(source_data_dir, "group_specific_ocrs.tsv")
-    ocr_single_gene_specific_file = os.path.join(source_data_dir, "gene_specific_ocrs.tsv")
+    #repeatmasker_file = os.path.join(source_data_dir, "rmsk_filtered.txt")
+    #ocr_group_specific_file = os.path.join(source_data_dir, "group_specific_ocrs.tsv")
+    #ocr_single_gene_specific_file = os.path.join(source_data_dir, "gene_specific_ocrs.tsv")
     jaspar_file = os.path.join(source_data_dir, "jaspar_filtered.txt")
-    kmer_file = os.path.join(source_data_dir, "kmers.txt")
+    #kmer_file = os.path.join(source_data_dir, "kmers.txt")
     fimo_file = os.path.join(source_data_dir, "fimo_motifs.txt")
     ##not actually used...... may delete later lols.
-    filtered_fimo_file = os.path.join(source_data_dir, "fimo_motifs_expressed.txt")
+    #filtered_fimo_file = os.path.join(source_data_dir, "fimo_motifs_expressed.txt")
 
     ## load data and populate features
 

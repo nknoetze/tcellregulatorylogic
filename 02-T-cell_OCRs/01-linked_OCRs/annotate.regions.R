@@ -44,7 +44,6 @@ gencode_v19 <- fread(gencode) %>%
 
 unannotated_file <- fread(file_to_annotate) %>%
     #fread('/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_tidy.tsv') %>%
-    #fread('/projects/nknoetze_prj/ocr_prj/data/processed/interactions/DICE/shared/tcell_merged_chip_peaks.tsv') %>%
     rename('chrom'=seqnames)
 
 #Create Grange Objects for OCRs/chip peaks and the TSS
@@ -75,7 +74,6 @@ map_genes <- function(unannotated_file, region_granges, tss_granges){
 annotated_file <- map_genes(unannotated_file,region_ranges,tss_ranges)
 
 #out_file='/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_annotated_tidy.tsv'
-#out_file='/projects/nknoetze_prj/ocr_prj/data/processed/interactions/DICE/shared/tcell_merged_chip_peaks_merged_annotated_tidy.tsv'
 
 out_file <- paste(outdir,'/',file_name,'.tsv',sep='')
 print(out_file)

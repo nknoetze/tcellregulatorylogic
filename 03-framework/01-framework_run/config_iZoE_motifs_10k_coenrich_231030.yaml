@@ -1,0 +1,27 @@
+GENOME_REF: "/projects/sbrown_prj/220318_DI/data/raw/ref/GRCh37.p13.genome.fa"
+ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/framework_env.yaml"
+OCRMETRICS_DATA_DIR: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/ocrs/iZoE_motifs"
+
+TARGET_GENES: "/projects/sbrown_prj/220318_DI/data/interim/tcell_gene_lists/iZoE_4sig_target_genes_231006.txt"
+BACKGROUND_GENES: "/projects/sbrown_prj/220318_DI/data/interim/tcell_gene_lists/iZoE_3sig_background_genes_231006.txt"
+REGIONS: "/projects/nknoetze_prj/ocr_prj/results/ocr_metric_files/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged/Loop_2.5kb/merged_interactions/connectivity8/tss_within/pulled_ocrs_tss_dist.tsv"
+ALL_GENES: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/ocrs/ranked_gene_list.tsv"
+
+NUM_ITER: 10000
+CORES: 16
+
+FUNCTIONS: "fimo_comotif_geneCount"
+
+RMSK_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/rmsk.txt"
+JASPAR_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/JASPAR2022_hg19.bed"
+FIMO_DATA: "/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/JASPAR+novelPCallArchetypes.meme"
+EXPRESSED_TFS: "/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_expressed.tsv"
+
+
+KMER_DIR: "/projects/nknoetze_prj/ocr_prj/results/kmer_similarity/20230404/"
+KMER_FILE: "pulled_ocrs_by_gene_kmer{kmer_len}.tsv"
+KMER_LENS: [8,12,16]
+NUM_MOTIFS: [2]
+MAX_BACKGROUND_WRITTEN: 100
+
+OUTPUT: "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_motifs_10k_coenrich/results_231030.tsv"

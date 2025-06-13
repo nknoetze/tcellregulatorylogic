@@ -34,15 +34,13 @@ framework_results <- args$framework_results
 ### ----------------------------- ###
 ###     PROCESSING FUNCTION       ###
 ### ----------------------------- ###
-process_data <- function(results_file,gene_file, expression_file,tcell_expressed_tf_file,feature_location_dir){
+process_data <- function(results_file,expression_file,tcell_expressed_tf_file,feature_location_dir){
   print('reading in file')
   results_files <- list.files(feature_location_dir,pattern='ranked',full.names = TRUE)
-  #  names(results_files) <- basename(results_files) %>% sub(".*\\.(\\w+)\\.filtered\\.tsv", "\\1", .)
   
   #all results have been filtered already in the rank_tfs.smk pipeline. no need to filter for expressed tfs
   results_df <- map_dfr(results_files,fread,nThread=48)  %>% 
     distinct(feature,region_set,target_value,background_mean, p_val,fc,motif_type,rank) %>%
-    #results_df <- map_dfr(results_files,fread,.id='motif_type',nThread=48)  %>% 
     mutate(feature_region=case_when(region_set=='promoter' ~ paste('p',feature,sep=''),
                                     region_set=='non-promoter' ~ paste('np',feature,sep=''),
                                     TRUE ~ paste('a',feature,sep=''))) 
@@ -90,23 +88,14 @@ process_data <- function(results_file,gene_file, expression_file,tcell_expressed
 ###     Read in files             ###
 ### ----------------------------- ###
 gene_expression <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv')
-types <- c('protein_coding','TR_C_gene','IG_C_gene')
-gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv') %>% 
-  filter(gene_type %in% types,transcript_type %in% types) %>% select(gene_id,gene_name) %>% unique()
-gene_names <- gencode %>% distinct(gene_id,gene_name)
-tf <- fread('/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19.tsv') %>% select(Symbol,EntrezGene)
 tcells <- c('cd4_naive','cd8_naive','th17','th1-17','th1','tfh','th2','treg_memory','treg_naive','cd4_n_stim','cd8_n_stim')
 tcell_median=237.04
 tcell_expressed_tfs <- fread('/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_tcellexpressed.tsv')
 
-#gene lists
-target_genes <- fread(target_genes,header = FALSE,col.names = c('gene_id')) %>%
-  inner_join(gene_names) 
-
 ### ----------------------------- ###
 ###     PROCESS DATA              ###
 ### ----------------------------- ###
-processed_zoe_files <- process_data(framework_results,gene_file = target_genes,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs,feature_location_dir = outdir)
+processed_zoe_files <- process_data(framework_results,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs,feature_location_dir = outdir)
 prefix <- list.files(outdir,pattern='ranked',full.names = TRUE) %>% basename() %>% str_extract("^[^.]+") %>% unique()
 output_dir <- paste(outdir,'/',prefix,'.processedcomotif.zoe.RDS',sep='')
 

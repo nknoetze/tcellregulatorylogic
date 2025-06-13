@@ -36,18 +36,6 @@ if(grepl('longncRNA',gene_file)==TRUE){
 
 #Read in the gencode file. only keeps genes on canonical and ChrX chromosomes.
 #Remove problematic transcripts
-# if(GENE_TYPE=='lincRNA'){
-#   gene_list <- fread(gene_file) %>%
-#     select(gene_id,gene_name) %>%
-#     mutate(gene_group='lincRNA')
-#   types <- c('lincRNA')
-  
-# } else if(GENE_TYPE=='protein_coding'){
-#   gene_list <- fread(gene_file) %>%
-#     select(gene_id, gene_group,gene_name) %>%
-#     mutate(gene_group=ifelse(gene_group=="non_specific","Non-Specific T-cell Gene", "T-cell Specific Gene"))
-#   types <- c('protein_coding','TR_C_gene','IG_C_gene')
-# }
 gencode <- fread(gencode_file) %>% 
   filter(type=='transcript',gene_type %in% types, transcript_type %in% types) %>% 
   filter(!(grepl("chrY|chrM",chrom))) 
@@ -69,25 +57,6 @@ linked_ocrs <- fread(linked_ocr_file) %>%
   inner_join(gencode_genes,by='gene_id')
 
 ##########################################
-##      GENE GROUP UNIQUE OCRS          ##
-##########################################
-print('getting gene group specific ocrs')
-#HAVE TO FILTER GENE LIST FIRST
-gene_group_specific_ocrs <- get_gene_group_specific_ocrs(linked_ocrs)
-## june 28 2024
-##NOTE: THIS REQUIRES LOOKING AT THE LABEL ASSIGNED TO EACH GENE. WHICH WE DID NOT UPDATE
-##  NEED TO UPDATE THIS TO CONSIDER THE TARGET GENE LIST
-##########################################
-##         GENE SPECIFIC OCRS           ##
-##########################################
-print('getting gene specific ocrs')
-#HAVE TO FILTER GENE LIST FIRST
-gene_specific_ocrs <- get_gene_specific_ocrs(linked_ocrs)
-## june 28 2024
-##NOTE: THIS REQUIRES LOOKING AT THE LABEL ASSIGNED TO EACH GENE. WHICH WE DID NOT UPDATE
-##  NEED TO UPDATE THIS TO CONSIDER THE TARGET GENE LIST
-
-##########################################
 ##             OCR-TSS DIST             ##
 ##########################################
 print('Calculating distance of OCRs to nearest TSS')
@@ -96,6 +65,4 @@ ocr_tss_dist <- get_ocrs_dists(linked_ocrs,gencode_genes)
 ##########################################
 ##         WRITE OUTPUT FILES           ##
 ##########################################
-fwrite(gene_group_specific_ocrs,paste(outdir,'pulled_ocrs_gene_group_specific.tsv',sep=''),sep='\t',quote=FALSE)
-fwrite(gene_specific_ocrs,paste(outdir,'pulled_ocrs_gene_specific.tsv',sep=''),sep='\t',quote=FALSE)
 fwrite(ocr_tss_dist,paste(outdir,'pulled_ocrs_tss_dist.tsv',sep=''),sep='\t',quote=FALSE)

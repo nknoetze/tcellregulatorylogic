@@ -3,44 +3,6 @@ suppressMessages(library(data.table))
 suppressMessages(library(tidyverse))
 
 ##########################################
-##             UNIQUE OCRS              ##
-##########################################
-#This function gets the OCRs that are linked only to a particular gene group (Other, T-cell specific, non-specific)
-get_gene_group_specific_ocrs <- function(linked_ocr_file){
-  #get the ocrs linked to each gene group
-  tcell_linked_ocrs <- linked_ocr_file %>% filter(gene_group=='T-cell Specific Gene')
-  nonspec_linked_ocrs <- linked_ocr_file %>% filter(gene_group=='Non-Specific T-cell Gene')
-  other_linked_ocrs <- linked_ocr_file %>% filter(gene_group=='Other')
-  
-  #Find the OCRs only linked to T-cell specific genes
-  tcell_gene_group_ocrs <- tcell_linked_ocrs %>% filter(!(ocr_id %in% nonspec_linked_ocrs$ocr_id) & !(ocr_id %in% other_linked_ocrs$ocr_id))
-  # Extra info
-  #nonunique_tcell_ocrs <- tcell_linked_ocrs %>% filter(ocr_id %in% nonspec_linked_ocrs$ocr_id | ocr_id %in% other_linked_ocrs$ocr_id)
-
-  #Find the OCRs only linked to non-specific genes
-  nonspecific_gene_group_ocrs <- nonspec_linked_ocrs %>% filter(!(ocr_id %in% tcell_linked_ocrs$ocr_id) & !(ocr_id %in% other_linked_ocrs$ocr_id))
-  #nonunique_nonspec_ocrs <- nonspec_linked_ocrs %>% filter(ocr_id %in% tcell_linked_ocrs$ocr_id | ocr_id %in% other_linked_ocrs$ocr_id)
-
-  gene_group_specific_ocrs <- full_join(nonspecific_gene_group_ocrs,tcell_gene_group_ocrs) %>% rename('query_gene'=gene_name) 
-  return(gene_group_specific_ocrs)
-}
-
-##########################################
-##             UNIQUE OCRS              ##
-##########################################
-#get ocrs linked to genes from only one gene group
-# then get ocrs that are GENE specific
-get_gene_specific_ocrs <- function(linked_ocrs){
-  gene_specific_ocrs <- linked_ocrs %>% group_by(ocr_id) %>% 
-    mutate(n_genegroup=n_distinct(gene_group,ocr_type)) %>% 
-    filter(n_genegroup==1) %>% group_by(gene_group,ocr_id,ocr_type) %>%
-    mutate(n_gene=n_distinct(gene_id)) %>%
-    filter(n_gene==1) %>% 
-    transmute(chrom,start,end,ocr_id,score='.',strand='*',ocr_type,gene_id,promoter_id,transcript_id,gene_name,gene_group) %>% unique()
-  return(gene_specific_ocrs)
-}
-
-##########################################
 ##             OCR DIST                 ##
 ##########################################
 get_ocrs_dists <- function(linked_ocrs,gencode_gene_file){

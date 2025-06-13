@@ -4,9 +4,6 @@ import pandas as pd
 ### OUT DIR VARIABLES ###
 out_dir=config['OUTDIR']
 tmp_dir=config['TEMP_OUTDIR']
-rmd_dir=config['RMD_OUTDIR']
-tidy_dir=config['METADATA_OUTDIR']
-figures_dir=config['FIGURES_OUTDIR']
 
 star_out_dir=config['STAR']
 rsem_out_dir=config['RSEM']
@@ -14,12 +11,9 @@ rsem_quants_out_dir=config['RSEM_FINAL']
 matrices_out_dir=config['MATRICES']
 corrected_matrices_out_dir=config['CORRECTED_MATRICES']
 normalised_counts_out_dir=config['NORMALISED_COUNTS']
-pca_matrices_dir=config['PCA_MATRICES']
 
-rmd_out_dir=f"{rmd_dir}"
 star_out_dir_1=f"{tmp_dir}/{star_out_dir}"
 rsem_out_dir_2=f"{tmp_dir}/{rsem_out_dir}"
-pca_matrices_out_dir_3=f"{tmp_dir}/{pca_matrices_dir}"
 
 rsem_final_out_dir_1=f"{out_dir}/{rsem_quants_out_dir}"
 raw_counts_out_dir_2=f"{out_dir}/{matrices_out_dir}"
@@ -35,8 +29,6 @@ gencode=config['GENCODE']
 dice_rsem_files=config['DICE_RSEM_FILES']
 conda_env_file=config['CONDA_CONFIG']
 counts_file_prefix=config['COUNTS_FILE_PREFIX']
-adj_type_all=config['ADJ_TYPE_ALL']
-adj_type=config['ADJ_TYPE']
 #--- GET SRR SAMPLE IDS FOR THE FASTQS
 try:
     SAMPLE_DF = pd.read_table(master_metadata_file)
@@ -53,14 +45,10 @@ rule all:
         expand(f"{rsem_final_out_dir_1}""/{sra_sample}/{sra_sample}.genes.results", sra_sample=sra_sample_id_list),
         expand(f"{rsem_final_out_dir_1}""/{sra_sample}/{sra_sample}.isoforms.results",sra_sample=sra_sample_id_list),
         f"{rsem_final_out_dir_1}""/dice_sra_effective_lengths.tsv",
-        #f"{rsem_out_dir_2}/dice_sra_effective_lengths.tsv",
         f"{raw_counts_out_dir_2}/sra.dice.counts.raw.tsv.gz",
         f"{corrected_matrices_out_dir_3}/sra.dice.counts.batchcorr.tsv.gz",
         expand(f"{normalised_counts_out_dir_4}/""sra.dice.counts.{counts_file_prefix}.sf.adj.tsv.gz",counts_file_prefix=counts_file_prefix),
-        expand(f"{normalised_counts_out_dir_4}/""sra.dice.counts.{counts_file_prefix}.sf.genel.adj.tsv.gz",counts_file_prefix=counts_file_prefix),
-        expand(f"{pca_matrices_out_dir_3}/""sra.dice.counts.{counts_file_prefix}.noadj.pca.RDS",counts_file_prefix=counts_file_prefix),
-        expand(f"{pca_matrices_out_dir_3}/""sra.dice.counts.{counts_file_prefix}.{adj_type}.pca.RDS",counts_file_prefix=counts_file_prefix,adj_type=adj_type),
-        f"{tidy_dir}/sra_dice_master_metadata_with_sex.tsv"
+        expand(f"{normalised_counts_out_dir_4}/""sra.dice.counts.{counts_file_prefix}.sf.genel.adj.tsv.gz",counts_file_prefix=counts_file_prefix)
 
 # # # --------------------------------------------------------------
 # # # ALIGN READS TO GENOME USING STAR
@@ -178,25 +166,6 @@ rule generate_raw_counts_matrix:
         "--SRA_file_path {input.sra_rsem_files} --metadata_file {input.metadata_file} 2>&1 | tee {params.log}"
 
 # # # --------------------------------------------------------------
-# # # PERFORM BATCH CORRECTION, AND NORMALISE THE COUNTS
-# # # --------------------------------------------------------------
-
-# rule perform_batch_correction:
-#     input:
-#         script='/projects/nknoetze_prj/promoter_prj/src/data/batch.correction.R',
-#         count_matrix=f"{raw_counts_out_dir_2}""/sra.dice.counts.raw.tsv.gz"
-#     params: 
-#         metadata_file_path=master_metadata_file, 
-#         outdir=f"{corrected_matrices_out_dir_3}/",
-#         log=f"{corrected_matrices_out_dir_3}/batch.correction.log"
-#     priority:3
-#     output:
-#         counts_study=f"{corrected_matrices_out_dir_3}/sra.dice.counts.batchcorr.tsv.gz"
-#     shell:
-#         "Rscript {input.script} --count_matrix {input.count_matrix} --metadata_file_path {params.metadata_file_path} "
-#         "--outdir {params.outdir} 2>&1 | tee {params.log}"
-
-# # # --------------------------------------------------------------
 # # # PERFORM SF AND GENE LENGTH NORMALISATION
 # # # --------------------------------------------------------------
 
@@ -232,67 +201,3 @@ rule genelength_normalisation:
     shell:
         "python {input.script} --count_matrix {input.counts_matrix} --metadata_file_path {input.metadata} --outdir {params.outdir} "
         "--effective_lengths {input.effective_lengths} --prefix {wildcards.counts_file_prefix} 2>&1 | tee {params.log}"
-
-# rule get_pca_matrices:
-#     input:
-#         script="/projects/nknoetze_prj/promoter_prj/src/data/get.pca.matrices.R",
-#         counts1=f"{raw_counts_out_dir_2}/sra.dice.counts.raw.tsv.gz",
-#         counts2=f"{corrected_matrices_out_dir_3}/sra.dice.counts.batchcorr.tsv.gz"
-#     params:
-#         counts_matrix=f"{out_dir}""/*/sra.dice.counts.{counts_file_prefix}.tsv.gz",
-#         outdir=f"{pca_matrices_out_dir_3}/",
-#         log=f"{pca_matrices_out_dir_3}/logs/""{counts_file_prefix}.noadj.pca.log"
-#     priority: 1
-#     output:
-#         f"{pca_matrices_out_dir_3}/""sra.dice.counts.{counts_file_prefix}.noadj.pca.RDS"
-#     shell:
-#         "Rscript {input.script} --count_matrix {params.counts_matrix} --outdir {params.outdir} "
-#         "--prefix {wildcards.counts_file_prefix} --adj_type noadj 2>&1 | tee {params.log}"
-
-# rule get_pca_matrices_adj:
-#     input:
-#         script="/projects/nknoetze_prj/promoter_prj/src/data/get.pca.matrices.R",
-#         counts_matrix1=f"{normalised_counts_out_dir_4}/""sra.dice.counts.{counts_file_prefix}.{adj_type}.tsv.gz"
-#     params:
-#         counts_matrix=f"{out_dir}""/*/sra.dice.counts.{counts_file_prefix}.{adj_type}.adj.tsv.gz",
-#         outdir=f"{pca_matrices_out_dir_3}/",
-#         log=f"{pca_matrices_out_dir_3}/logs/""{counts_file_prefix}.adj.pca.log"
-#     priority: 2
-#     output:
-#         f"{pca_matrices_out_dir_3}/""sra.dice.counts.{counts_file_prefix}.{adj_type}.pca.RDS"
-#     shell:
-#         "Rscript {input.script} --count_matrix {input.counts_matrix1} --outdir {params.outdir} "
-#         "--prefix {wildcards.counts_file_prefix} --adj_type {wildcards.adj_type} 2>&1 | tee {params.log}"
-
-# # # --------------------------------------------------------------
-# # # PREDICT SEX
-# # # --------------------------------------------------------------        
-
-# rule predict_sex:
-#     input:
-#         script="/projects/nknoetze_prj/promoter_prj/src/data/predict.sex.R",
-#         counts_matrix=f"{normalised_counts_out_dir_4}/""sra.dice.counts.batchcorr.sf.genel.adj.tsv.gz",
-#         gencode=gencode,
-#         metadata=master_metadata_file
-#     priority: 2
-#     params:
-#         outdir=f"{tidy_dir}/",
-#         figure_outdir=f"{figures_dir}/"
-#     output:
-#         f"{tidy_dir}/""sra_dice_master_metadata_with_sex.tsv"
-#     shell:
-#         "Rscript {input.script} --count_matrix {input.counts_matrix} --gencode {input.gencode} --metadata_file {input.metadata} "
-#         "--figure_outdir {params.figure_outdir} --outdir {params.outdir}"
-
-# # # --------------------------------------------------------------
-# # # RUN THE PCA RMD TO ANALYSE BATCH CORRECTION RESULTS
-# # # --------------------------------------------------------------
-
-# rule pca_RMD:
-#     input:
-#         pca_corrected=f"{corrected_matrices_out_dir_3}/adjusted_counts_pca_bystudy",
-#         script="/projects/nknoetze_prj/promoter_prj/src/rmarkdown/SRA-DICE-QC/sra.dice.PCA.Rmd"
-#     output:
-#         f"{rmd_out_dir}/SRA-DICE-QC/sra.dice.PCA.pdf"
-#     shell:
-#         "Rscript -e \"rmarkdown::render('{input.script}')\"; exit 0"

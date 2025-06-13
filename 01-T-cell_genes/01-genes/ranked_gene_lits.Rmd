@@ -1,0 +1,229 @@
+---
+title: "gene_expression"
+output: 
+  pdf_document:
+      keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(tidyverse)
+library(pheatmap)
+library(tidytext)
+#library(enrichR)
+options(scipen=999)
+
+# Read in the median expression for each gene by cell subtype
+median_expr <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv') %>% select(-cd4_n_stim,-cd8_n_stim)
+median_expr_ncrna <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr_longncRNA.tsv') %>% select(-`Cd4 Stim`,-`Cd8 Stim`)
+ranked_pc_filtered <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list_missingocrgenes_removedv2.tsv')
+
+types <- c('protein_coding','TR_C_gene','IG_C_gene')
+gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv') %>%
+  filter(type=='transcript',gene_type %in% types) %>% select(gene_id,gene_name) %>% unique()
+ncrna_gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv') %>%
+  filter(type=='transcript',gene_type=='lincRNA') %>% select(gene_id,gene_name) %>% unique()
+
+
+# select for t cell samples, calculate the sum of medians (across each cell type) for each gene
+tcell_df <- median_expr %>% select(cd4_naive,cd8_naive,th17,`th1-17`,th1,tfh,th2,treg_memory,treg_naive,gene_id) %>% 
+  mutate(tsum=rowSums(across(where(is.numeric)))) 
+
+tcell_df_ncrna <- median_expr_ncrna %>% select(`Cd4 Naive`,`Cd8 Naive`,Th17,`Th1-17`,Th1,Tfh,Th2,`Treg Memory`,`Treg Naive`,gene_id) %>% 
+  mutate(tsum=rowSums(across(where(is.numeric))))
+
+bcell_df <- median_expr %>% select(b_naive,gene_id) %>% 
+  mutate(bsum=rowSums(across(where(is.numeric))))
+
+hepatocyte_df <- median_expr %>% select(terminally_differentiated_hepatic_cells,human_hepatocyte_cell_line,gene_id) %>% 
+  mutate(hsum=rowSums(across(where(is.numeric))))
+
+# select the non-t cell samples, calculate the sum of medians (across each cell type) for each gene
+nontcell_df <- median_expr %>% select(-cd4_naive,-cd8_naive,-th17,-`th1-17`,-th1,-tfh,-th2,-treg_memory,-treg_naive,-gene_name)  %>% 
+  mutate(osum=rowSums(across(where(is.numeric)))) 
+nontcell_df_ncrna <- median_expr_ncrna %>% select(-`Cd4 Naive`,-`Cd8 Naive`,-Th17,-`Th1-17`,-Th1,-Tfh,-Th2,-`Treg Memory`,-`Treg Naive`,-gene_name)  %>% 
+  mutate(osum=rowSums(across(where(is.numeric)))) 
+
+nonbcell_df <- median_expr %>% select(-b_naive,-gene_name)  %>% 
+  mutate(osum=rowSums(across(where(is.numeric)))) 
+
+nonhepatocyte_df <- median_expr %>% select(-terminally_differentiated_hepatic_cells,-human_hepatocyte_cell_line,-gene_name) %>% 
+  mutate(osum=rowSums(across(where(is.numeric))))
+
+#get the median of the sum of median for t cells. use as a filter to remove genes with insufficient expression in t cells
+tcell_median <-median(tcell_df$tsum)
+tcell_median_ncrna <-median(tcell_df_ncrna$tsum)
+
+bcell_median <- median(bcell_df$bsum)
+
+hcell_median <- median(hepatocyte_df$hsum)
+#combine the two dataframe, remove genes where their expression is below the median of tsum
+#arrage in ascending order by the non-tcell sum (osum), rank.
+#arrage in descending order by the tcell sum (tsum), rank.
+#get the rank sums (combining the trank and orank)
+#get the gene names
+#order based on the rowsums in ascending order.
+gene_df <- inner_join(tcell_df,nontcell_df) %>%
+  filter(tsum > tcell_median) %>% 
+  arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
+  arrange(desc(tsum)) %>% mutate(trank=1:nrow(.)) %>% 
+  mutate(t_o_rank=trank+orank) %>% inner_join(gencode) %>%
+  arrange(t_o_rank)  %>%
+  mutate(rownumber=1:nrow(.)) %>%
+  mutate(gene_group=ifelse(rownumber<41, 'tcell_specific','non_specific')) %>% 
+  select(-rownumber)
+ncrna_gene_df <- inner_join(tcell_df_ncrna,nontcell_df_ncrna) %>%
+  filter(tsum > tcell_median_ncrna) %>% 
+  arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
+  arrange(desc(tsum)) %>% mutate(trank=1:nrow(.)) %>% 
+  mutate(t_o_rank=trank+orank) %>% inner_join(ncrna_gencode) %>%
+  arrange(t_o_rank)  
+
+bcell_gene_df <- inner_join(bcell_df,nonbcell_df) %>%
+  filter(bsum > bcell_median) %>% 
+  arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
+  arrange(desc(bsum)) %>% mutate(brank=1:nrow(.)) %>% 
+  mutate(b_o_rank=brank+orank) %>% inner_join(gencode) %>%
+  arrange(b_o_rank)  %>%
+  mutate(rownumber=1:nrow(.)) %>%
+  mutate(gene_group=ifelse(rownumber<41, 'bcell_specific','non_specific')) %>% 
+  select(-rownumber)
+
+hepatocyte_gene_df <- inner_join(hepatocyte_df,nonhepatocyte_df) %>%
+  filter(hsum > hcell_median) %>% 
+  arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
+  arrange(desc(hsum)) %>% mutate(hrank=1:nrow(.)) %>% 
+  mutate(h_o_rank=hrank+orank) %>% inner_join(gencode) %>%
+  arrange(h_o_rank)  %>%
+  mutate(rownumber=1:nrow(.)) %>%
+  mutate(gene_group=ifelse(rownumber<41, 'hepatocyte_specific','non_specific')) %>% 
+  select(-rownumber)
+
+#fwrite(gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv',quote=FALSE,sep='\t')
+#fwrite(bcell_gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/bcell_ranked_gene_list.tsv',quote=FALSE,sep='\t')
+#fwrite(hepatocyte_gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/hepatocyte_ranked_gene_list.tsv',quote=FALSE,sep='\t')
+#fwrite(ncrna_gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_ncRNA_list.tsv',quote=FALSE,sep='\t')
+```
+
+```{r expr_heatmap,fig_width=16.5,fig_height=11}
+top_200 <- gene_df %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% head(n=200) %>% mutate(set='Top 200 Genes')
+bottom_200 <- gene_df %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% tail(n=200) %>% mutate(set='Bottom 200 Genes')
+middle_200 <- (gene_df %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% mutate(set='Middle 200 Genes'))[5402:5601] 
+gene_annot <- rbind(top_200,bottom_200) %>% 
+  select(gene_name, gene_group,set) %>%#rbind(middle_200) %>% select(gene_name, gene_group,set) %>% 
+  column_to_rownames(var='gene_name')
+
+rbind(top_200,bottom_200) %>%  select(-gene_group,-set) %>% column_to_rownames(var='gene_name') %>% pheatmap(scale='row',show_rownames = FALSE,annotation_row = gene_annot,fontsize_col = 8)
+
+gene_df %>% select(-orank,-osum,-tsum,-t_o_rank,-trank,-gene_name,-gene_group) %>% column_to_rownames(var='gene_id')  %>% pheatmap(scale='row',color = colorRampPalette(c("#2166ac", "white", "#d6604d"))(100),show_rownames = FALSE,cluster_rows = FALSE,main='Expression of T-cell Protein Coding Genes Across Cell Types - Rows In Ranked Order',fontsize_col = 8)
+
+ranked_pc_filtered %>% select(-osum,-tsum,-trank,-orank,-t_o_rank,-gene_name,-gene_group,-row) %>% melt() %>% 
+    mutate(variable=gsub("_n_"," ",variable),
+           variable=gsub("_"," ",variable),
+           variable=str_to_title(variable)) %>% pivot_wider(names_from=variable, values_from=value) %>% column_to_rownames(var='gene_id') %>% 
+  pheatmap(scale='row',color = colorRampPalette(c("#2166ac", "white", "#d6604d"))(100),show_rownames = FALSE,cluster_rows = FALSE,
+           main='Expression of Protein Coding Genes Across Cell Types - Rows in Ranked Order (Filtered Genes)',fontsize_col = 6,fontsize = 6,clustering_method = 'ward')
+######################
+#Top 22
+top_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% head(n=22) %>% mutate(set='Top 22 Genes')
+
+top_22_matrix <- top_22 %>% select(-gene_group,-set,-row) %>% melt() %>% 
+    mutate(variable=gsub("_n_"," ",variable),
+           variable=gsub("_"," ",variable),
+           variable=str_to_title(variable)) %>% 
+  pivot_wider(names_from=variable, values_from=value) %>% column_to_rownames(var='gene_name') 
+
+scale_rows <-  function(x){
+    m = apply(x, 1, mean, na.rm = T)
+    s = apply(x, 1, sd, na.rm = T)
+    return((x - m) / s)
+}
+top22_scaledrows <- scale_rows(top_22_matrix)
+
+paletteLength <- 25
+myColor <- colorRampPalette(c('#2b8cbe', "white", "#54278f"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(min(top22_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(top22_scaledrows)/paletteLength, max(top22_scaledrows), length.out=floor(paletteLength/2)))
+
+# Plot the heatmap
+pheatmap(top22_scaledrows, color=myColor, breaks=myBreaks,
+         show_rownames = TRUE,cluster_rows = FALSE,
+         main="Gene Expression of T-cell Specific Genes Across Cell Types",
+         fontsize_col = 12,fontsize = 12,clustering_method = 'ward',cutree_cols = 2)
+
+
+######################
+#Top 22 * bottom 10
+bottom_10 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% tail(n=10) %>% mutate(set='Bottom 10 Genes')
+top22_bottom10 <- rbind(top_22,bottom_10)
+
+top22_bottom10_matrix <- top22_bottom10 %>% select(-gene_group,-row,-set) %>% melt() %>% 
+    mutate(variable=gsub("_n_"," ",variable),
+           variable=gsub("_"," ",variable),
+           variable=str_to_title(variable)) %>% 
+  pivot_wider(names_from=variable, values_from=value) %>% column_to_rownames(var='gene_name') 
+
+top22_bottom10_scaledrows <- scale_rows(top22_bottom10_matrix)
+
+paletteLength <- 25
+myColor <- colorRampPalette(c('#2b8cbe', "white", "#54278f"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(min(top22_bottom10_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(top22_bottom10_scaledrows)/paletteLength, max(top22_bottom10_scaledrows), length.out=floor(paletteLength/2)))
+
+# Plot the heatmap
+pheatmap(top22_bottom10_scaledrows, color=myColor, breaks=myBreaks,
+         show_rownames = TRUE,cluster_rows = FALSE,
+         main="Gene Expression of T-cell Specific Genes Across Cell Types",
+         fontsize_col = 12,fontsize = 12,clustering_method = 'ward',cutree_cols = 2,gaps_row = 22,angle_col = 45)
+
+######################
+#Top 22 * bottom 22
+bottom_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% tail(n=22) %>% mutate(set='Bottom 10 Genes')
+top22_bottom22 <- rbind(top_22,bottom_22)
+
+top22_bottom22_matrix <- top22_bottom22 %>% select(-gene_group,-row,-set) %>% melt() %>% 
+    mutate(variable=gsub("_n_"," ",variable),
+           variable=gsub("_"," ",variable),
+           variable=str_to_title(variable)) %>% 
+  pivot_wider(names_from=variable, values_from=value) %>% column_to_rownames(var='gene_name') 
+
+top22_bottom22_scaledrows <- scale_rows(top22_bottom22_matrix)
+
+paletteLength <- 15
+myColor <- colorRampPalette(c("#2166ac","#FBFEF9","#b2182b"))(paletteLength)
+#myColor <- colorRampPalette(c('#2b8cbe', "white", "#54278f"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(min(top22_bottom22_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(top22_bottom22_scaledrows)/paletteLength, max(top22_bottom22_scaledrows), length.out=floor(paletteLength/2)))
+
+row_annotation <- data.frame(`Gene Group`= rep(c("Top-Ranked T-cell Gene", "Bottom Ranked T-cell Gene"), each = 22)) %>% rename("Gene Group"=`Gene.Group`)
+rownames(row_annotation) <- rownames(top22_bottom22_scaledrows)
+
+my_colours <-  list(`Gene Group` = c(`Top-Ranked T-cell Gene` = "violetred4", `Bottom Ranked T-cell Gene` = 'grey90'))
+# Plot the heatmap
+pheatmap(top22_bottom22_scaledrows, color=myColor, breaks=myBreaks,
+         show_rownames = TRUE,cluster_rows = FALSE,
+         #main="Gene Expression of T-cell Specific Genes Across Cell Types",
+         fontsize_col = 10,fontsize_row=9,fontsize = 12,clustering_method = 'ward',cutree_cols = 2,gaps_row = 22,angle_col = 90,
+         annotation_row = row_annotation,
+         annotation_colors = my_colours)
+
+#####################
+ranked_ncRNA <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_longncRNA_list.tsv')
+ranked_ncRNA_filtered <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_longncRNA_list_filtered+meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged+Loop_2.5kb+connectivity8.tsv')
+
+ranked_ncRNA %>% select(-osum,-tsum,-trank,-orank,-t_o_rank,-gene_name) %>% column_to_rownames(var='gene_id') %>% pheatmap(scale='row',color = colorRampPalette(c("#2166ac", "white", "#d6604d"))(100),show_rownames = FALSE,cluster_rows = FALSE,main='Expression of T-cell ncRNA Genes Across Cell Types - Rows in Ranked Order',fontsize_col = 8,fontsize = 8)
+
+ranked_ncRNA %>% select(-osum,-tsum,-trank,-orank,-t_o_rank,-gene_name) %>% column_to_rownames(var='gene_id') %>% pheatmap(scale='row',color = colorRampPalette(c("#2166ac", "white", "#d6604d"))(100),show_rownames = FALSE,cluster_rows = TRUE,main='Expression of T-cell ncRNA Genes Across Cell Types',fontsize_col = 8,fontsize = 8)
+
+ranked_ncRNA_filtered %>% select(-osum,-tsum,-trank,-orank,-t_o_rank,-gene_name) %>% column_to_rownames(var='gene_id') %>% pheatmap(scale='row',color = colorRampPalette(c("#2166ac", "white", "#d6604d"))(100),show_rownames = FALSE,cluster_rows = FALSE,main='Expression of T-cell ncRNA Across Cell Types - Rows in Ranked Order (Filtered Genes)',fontsize_col = 6,fontsize = 6)
+
+ranked_ncRNA_filtered %>% select(-osum,-tsum,-trank,-orank,-t_o_rank,-gene_name) %>% column_to_rownames(var='gene_id') %>% pheatmap(scale='row',color = colorRampPalette(c("#2166ac", "white", "#d6604d"))(100),show_rownames = FALSE,cluster_rows = TRUE,main='Expression of T-cell ncRNA Across Cell Types - (Filtered Genes)',fontsize_col = 8,fontsize = 8)
+
+```
+```

@@ -1,0 +1,396 @@
+---
+title: "T-cell Gene Lists"
+author: "Nicole Knoetze"
+date: '`r format(Sys.Date(), "%Y-%B-%d")`'
+output: 
+  pdf_document:
+    keep_md: TRUE
+---
+
+Goal: The goal of this analysis is to find a list of T-cell specific that have moderate - high expression in T-cells with little expression in non-T cells.
+
+The gene counts used in this analysis underwent were used with DESeq2 to normalise the counts using the median of ratios method. This method allows for the comparision of gene expression values between independent samples by correcting for RNA composition and library size. To account for gene length, the normalised reads obtained from DeSeq2 were divided by the effective gene length of the corresponding gene for each sample independently.
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+options(width=60)
+options(scipen = 999)
+suppressMessages(library(data.table))
+suppressMessages(library(tidyverse))
+suppressMessages(library(pheatmap))
+suppressMessages(library(knitr))
+```
+
+``` {r read_metadata, include=FALSE, warning=FALSE, message=FALSE}
+#-------------------------
+#set up the metadata 
+tcells <- c('cd4_naive','cd8_naive','cd4_n_stim','cd8_n_stim','th1','th2',
+            'th17','th1-17','tfh','treg_memory', 'treg_naive')
+tcells_nostim <- c('cd4_naive','cd8_naive','th1','th2',
+            'th17','th1-17','tfh','treg_memory', 'treg_naive')
+cell_names <- c('Naive B-cells','Brain Endothelial Cells','CD34+ HSC - Cord Blood','CD34+ HSC - Peripheral',
+                'CD4+ Naive T cells','Stimulated CD4+ Naive T cells','CD8+ Naive T cells',
+                'Stimulated CD8+ Naive T cells','Classical Monocytes','Aortic Endothelial Cells','Brain Microvascular Endothelial Cells',
+                'Hepatocyte Cell Line','Pulmonary Endothelial Cells','Non-Classical Monocytes','Oocyte Cell',
+                'Sperm Cell', 'Differentiated Hepatocytes', 'T-Follicular Helper Cells', 'T-Helper 1 cells', 'T-Helper 1/17 cells',
+                'T-Helper 17 cells', 'T-Helper 2 cells', 'Memory Regulatory T cells', 'Naive Regulatory T cells')
+metadata_path='/projects/nknoetze_prj/promoter_prj/results/tidy/sra_dice_master_metadata.tsv'
+metadata <- fread(metadata_path)%>%
+  filter(cell_type!="nk_cd16pos") %>%
+  mutate(cell_group=ifelse(cell_type %in% tcells,'Tcell',cell_type))# %>%
+  select(cell_group,sample_id, cell_type)
+
+#set up the names for the all the cell types
+cell_types <- metadata %>% select(cell_type,cell_group) %>% 
+  unique() %>% arrange(cell_type) %>%
+  cbind(cell_names) 
+
+offtarget_celltypes <- cell_types %>% filter(!(cell_type %in% tcells))
+tcell_types <- cell_types %>% filter(cell_group=='Tcell') 
+offtarget_celltypes_kable <- offtarget_celltypes %>% select(cell_names) %>% rename('Off-Target Cells'=cell_names) %>% knitr::kable()
+tcell_types_kable <- tcell_types %>% rename('Tcells' = cell_names) %>% knitr::kable()
+```
+
+``` {r data_setup, include=FALSE, warning=FALSE, message=FALSE}
+gene_types <- c('protein_coding','IG_C_gene','TR_C_gene')
+#EXCLUDE the Y chromosome, remove mitochondrial genes
+chromosomes <- paste('chr',c(1:22,'X'),sep='')
+gencode_file <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.full.parsed.tsv',
+                 col.names = c('chrom','type','start','end','strand','gene_id',
+                               'transcript_id','gene_type','gene_name')) %>%
+  filter(!grepl("^MT-",gene_name),chrom %in% chromosomes) %>% 
+  select(gene_name,gene_id,gene_type) %>% unique()
+#this list contains protein coding and the TR/IG genes
+genes <- gencode_file %>%
+  filter(gene_type %in% gene_types) %>%
+  select(gene_name,gene_id) 
+
+# converting read counts that were normalised by DESeq2 and adjusted for gene length
+# to a dataframe and adding the metadata.
+# Remove genes that have 0 expression across all samples
+# includes protein coding AND TR/IG genes.********
+counts_nobatchcorr <- fread('/projects/nknoetze_prj/promoter_prj/results/SRA-endothelial-hepatocyte-rsem/04-normalised-counts/sra.dice.counts.raw.sf.genel.adj.tsv.gz',nThread=12) %>%
+  filter(rowSums(across(where(is.numeric)))>0) %>%
+  reshape2::melt() %>%
+  filter(gene_id %in% genes$gene_id) %>%
+  rename('sample_id'=variable) %>%
+  inner_join(metadata)
+```
+
+
+To identify T-cell specific genes, we need to find genes that have medium-high expression in T cells, with little to no expression in off-target cell types. This analysis will be carried out in 3 mains steps
+1. Calculate the median expression of each gene in T cells and in each off-target cell type independently.
+2. Filter for genes that have sufficient expression in T cells (above baseline threshold). 
+3. Remove genes that have high expression in off-target cell types
+4. Filter for genes that satisfy the above requirement in 90%+ of the off-target cell-types
+
+```{r functions, include=FALSE, warning=FALSE, message=FALSE}
+#-------- FUNCTION FOR CALCULATING MEDIAN EXPRESSION ------------------------
+#--------------IN EACH CELL TYPE INDEPENDENTLY ------------------------------
+get_median_expression <- function(counts_df){
+# Get the median expression for each gene in each cell type, separately. Keep zeros
+    median_expression <- counts_df %>%
+      group_by(cell_type,gene_id) %>%
+      summarise(median_expression=as.numeric(median(value))) %>%
+      pivot_wider(names_from=cell_type,values_from = median_expression) 
+    return(median_expression)
+}
+
+#---------- FUNCTION TO CALCULATE FILTER DATASET -----------------------
+filter_genes <- function(median_counts,tcell_list,offtarget_list,thresholds_df){
+  x=1
+  filtered_genes_df_tcell <- data.frame()
+  filtered_genes_offtarget <- data.frame()
+  full_filtered_genes_df <- data.frame()
+  filtered_genes_list <- list()
+  for (row in 1:nrow(thresholds_df)){
+    t_threshold <- thresholds_df$tcell_threshold[[row]]
+    o_threshold <-  thresholds_df$off_target_threshold[[row]]
+    threshold_comparison <- paste(t_threshold,':',o_threshold,sep='')
+    for (t in 1:length(tcell_list)){
+      tcell_type <- tcell_list[t]
+      filtered_genes_df_tcell <- median_counts %>%
+        select(gene_id, !!tcell_type) %>%
+        filter(!!sym(tcell_type) > t_threshold) %>%
+        rename('median_expression':=!!tcell_type) %>%
+        mutate(cell_type:=tcell_type,threshold_comparison=threshold_comparison) 
+      filtered_genes_list[[x]] <- filtered_genes_df_tcell
+      x=x+1
+    }
+    for (i in 1:nrow(offtarget_list)){
+      offtarget_celltype <- offtarget_list$cell_type[i]
+      filtered_genes_offtarget <- median_counts %>%
+        select(gene_id, !!offtarget_celltype) %>%
+        filter(!!sym(offtarget_celltype) < o_threshold) %>%
+        rename('median_expression':=!!offtarget_celltype) %>%
+        mutate(cell_type:=offtarget_celltype,threshold_comparison=threshold_comparison)
+      filtered_genes_list[[x]] <- filtered_genes_offtarget
+      x=x+1
+    }
+  }
+  full_filtered_genes_df <- do.call(rbind,filtered_genes_list)
+  return(full_filtered_genes_df)
+}
+  
+```
+
+
+```## Step 1: Getting the Median Expression for Each Gene and cell type
+The median expression is calculated on a per-cell-type basis for each gene (protein coding, IGC, TRC genes).
+```{r median_expression, inlcude=TRUE, warning=FALSE, message=FALSE}
+median_expression_nobatchcorr <- get_median_expression(counts_nobatchcorr)
+#median_expression_nobatchcorr %>% inner_join(genes) %>% fwrite('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv',sep='\t',quote=FALSE)
+```
+# T-cell Thresholds
+This threshold is used to select for genes that have sufficient expression in T-cells. We are going to look at various thresholds to test. The first, is the median expression of all non-zero genes (so they are expressed to some degree). The second threshold will ba less stringet, and it will be half of the median. Finally, the third threshold will be the local minima in the gene expresion distribution plot. The idea behind using the local minima is that the gene expression is bi-modal, and is separated into two peaks which separate moderate/high expressed genes from low expressed genes.
+```{r tcell_thresholds, fig.width = 9, fig.height=6}
+#get the median expression for T cells for protein coding genes and IG, TR genes
+#get median expression of all NON-ZERO GENES
+tcell_median_nonzero <- counts_nobatchcorr %>% 
+  filter(cell_group=="Tcell",gene_id %in% genes$gene_id,value>0) %>%
+  mutate(median=median(value))
+
+#get the local minimum
+density_t <- density(log2(tcell_median_nonzero$value+1))
+t_loc_min <- optimize(approxfun(density_t$x,density_t$y),interval=c(2,5))$minimum
+
+#plot the expression distribution, and the two thresholds
+tcell_median_nonzero %>% ggplot(aes(x=log2(value+1))) +
+  geom_density(alpha=0.1,colour='violetred3',fill='violetred3')+
+  theme_bw()+
+  ggtitle("Gene Expression Distribution of Non-Zero Genes in T cells") +
+  theme(plot.title=element_text(hjust=0.5))+
+  xlab("Log2(Gene Expression + 1)")+
+  ylab("Density")+
+  geom_vline(aes(xintercept = log2(tcell_median_nonzero$median+1),linetype='longdash'),colour='grey60') + 
+  geom_vline(aes(xintercept=log2((tcell_median_nonzero$median/2)+1),linetype='dotted'),colour='grey60')+
+  #local minima is in log form already
+  geom_vline(aes(xintercept=t_loc_min,linetype='4C88C488'),colour='grey60')+
+  scale_linetype_manual(name="Threshold",labels=c('Median','Median/2', 'Local Minima'),
+                        values=c('longdash','dotted','4C88C488'))
+```
+
+The thresholds for T-cell expression are the median(`r round(unique(tcell_median_nonzero$median),digits=0)`), half of the median(`r round((unique(tcell_median_nonzero$median)/2),digits=0)`), and the local minima (`r round((2^(t_loc_min))-1,digits=0)`). All values have been rounded.
+
+
+# Non-T cell Thresholds
+Now we are going to look at some thresholds for non-t cells. First, lets look at the expression of some known B cell, T cell, and CD34+ HSC genes across all our cell types. Then, we can see if there is background level of noise in our data, which would be evident if cell-types that are known to not express the specific genes show some degree of signal. We can use this threshold to remove any genes that are above this expression threshold in non-T cells. 
+
+
+```{r backgroun_noise, fig.width = 9, fig.height=6}
+specific_genes <- data.frame(gene_name=c('CD19','CD34','CD247','CD3E','CD3D','CD3G','TRAC','FOXP3','TNFRSF17')) %>% 
+  inner_join(genes)
+background_expr <- median_expression_nobatchcorr %>% reshape2::melt() %>% 
+  inner_join(specific_genes) %>% rename('cell_type'=variable)  %>%
+  inner_join(cell_types) %>% 
+  mutate(cell_names=case_when(grepl("cd4_|th[0-9]|tfh",cell_type)~ "CD4+ T cell",
+                              grepl("cd8_",cell_type) ~ "CD8+ T cell",
+                              grepl("reg",cell_type) ~ "Regulatory T cell",
+                              grepl("cd34+",cell_type) ~ "CD34+ HSC",
+                              grepl("hepat+",cell_type) ~ "Hepatocyte",
+                              grepl("monocyte",cell_type) ~ "Monocyte",
+                              grepl("endo",cell_type) ~ "Endothelial",
+                           TRUE ~ cell_names)) 
+
+ordered_cells <- c('CD4+ T cell','Regulatory T cell','CD8+ T cell', 'Naive B-cells', 
+                   'Monocyte','CD34+ HSC','Endothelial', 'Hepatocyte', 'Oocyte Cell','Sperm Cell')
+ordered_genes <- c('CD247','CD3E','CD3D','CD3G','TRAC','FOXP3','TNFRSF17','CD19','CD34')
+background_expr %>%
+  ggplot(aes(x=fct_relevel(cell_names,ordered_cells),y=log2(value+1),
+             colour=fct_relevel(cell_names,ordered_cells),fill=fct_relevel(cell_names,ordered_cells)))+
+  geom_boxplot(alpha=0.6)+
+  theme_bw()+
+  ggtitle('Median Expression of Known Cell-Type-Specific Genes Across Cell Types')+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.x=element_blank(),
+        legend.position="bottom",
+        plot.title = element_text(hjust=0.5))+
+  facet_wrap(.~fct_relevel(gene_name, levels=ordered_genes),scales = 'free_x',ncol=3) +
+  scale_colour_manual(name='Cell Type',values=c('#005a32','#41ab5d','#addd8e','#0c2c84',
+                               '#225ea8','#1d91c0','#6a51a3','#9e9ac8','#dd3497','#fa9fb5'))+
+  scale_fill_manual(name='Cell Type',values=c('#005a32','#41ab5d','#addd8e','#0c2c84',
+                               '#225ea8','#1d91c0','#6a51a3','#9e9ac8','#dd3497','#fa9fb5'))+
+  geom_hline(yintercept=log2(31),colour='grey60',linetype='dashed')
+```
+
+We can also explore the local minima, similar to the T-cell threshold.
+```{r nontcell_noise, fig.width = 9, fig.height=6}
+#get the median expression for T cells for protein coding genes and IG, TR genes
+#get median expression of all NON-ZERO GENES
+nontcell_median_nonzero <- counts_nobatchcorr %>% 
+  filter(cell_group!="Tcell",gene_id %in% genes$gene_id,value>0) %>%
+  mutate(median=median(value))
+
+#get the local minimum
+density_nt <- density(log2(nontcell_median_nonzero$value+1))
+nt_loc_min <- optimize(approxfun(density_nt$x,density_nt$y),interval=c(1,5))$minimum
+
+#plot the expression distribution, and the two thresholds
+nontcell_median_nonzero %>% ggplot(aes(x=log2(value+1))) +
+  geom_density(alpha=0.1,colour='violetred3',fill='violetred3')+
+  theme_bw()+
+  ggtitle("Gene Expression Distribution of Non-Zero Genes in Non-T cells") +
+  theme(plot.title=element_text(hjust=0.5))+
+  xlab("Log2(Gene Expression + 1)")+
+  ylab("Density")+
+  #local minima in log form already
+  geom_vline(aes(xintercept=nt_loc_min,linetype='dotted'),colour='grey60')+
+  geom_vline(aes(xintercept=log2(31+1),linetype='longdash'),colour='grey60')+
+  geom_vline(aes(xintercept=log2(16+1),linetype='4C88C488'),colour='grey60')+
+  scale_linetype_manual(name="Threshold",labels=c('Background Noise Level','Local `Minima','50% Background Noise Level'),values=c('longdash','dotted','4C88C488'))
+
+```
+
+The expression thresholds for non-T cells are the Local minima (`r round((2^(nt_loc_min)-1),digits=0)`), the background noise level threshold `r round((2^5)-1,digits=0)`, and half the background noise level (`r round(((2^5)-1)/2,digits=0)``) as described above.
+
+## Now we can filter the genes, testing the various thresholds. At this point there is no filtering done by cell type.
+```{r thresholding} 
+threshold_comparisons <- expand.grid(c(round(unique(tcell_median_nonzero$median)/2,digits=0),
+                                       round(unique(tcell_median_nonzero$median),digits=0),
+                                       round(2^(t_loc_min))-1),
+                                     c(round((2^(nt_loc_min)-1),digits=0),round((2^(5)-1),digits=0),
+                                       round((2^(5)-1)/2,digits=0))) %>% 
+  rename('tcell_threshold'=Var1, 'off_target_threshold'=Var2) %>%
+  filter(off_target_threshold < tcell_threshold)
+
+filtered_genes <- filter_genes(median_expression_nobatchcorr,tcells,offtarget_celltypes,threshold_comparisons)
+filtered_genes %>% 
+  group_by(threshold_comparison) %>% summarise(n_genes=n()) %>%
+  ggplot(aes(x=fct_reorder(threshold_comparison,n_genes,.desc=TRUE),y=n_genes))+ 
+  geom_bar(stat='identity',fill="grey60")+
+  xlab("T cell Threshold : Non-T cell Threshold")+
+  ylab("Number of Genes")+
+  ggtitle("Number of Genes After Threshold Filtering")+
+  theme_minimal()+
+  theme(plot.title=element_text(hjust=0.5))
+```
+
+
+```{r cell_type_filtere}
+filter_celltypes <- function(filtered_gene_list,tcell_list,gencode,min_offt_cell){
+  num_tcells <- length(tcell_list)
+  print(paste('Number of T cells:',num_tcells,sep=''))
+  filtered_genes_final <- filtered_gene_list %>% 
+    mutate(cell_group=case_when(cell_type %in% tcell_list ~ 'tcell',
+                                TRUE ~ 'offtarget')) %>%
+    group_by(gene_id,threshold_comparison,cell_group) %>%
+    summarise(n_celltype=n()) %>%
+    pivot_wider(names_from=cell_group,values_from=n_celltype) %>%
+    filter(tcell==num_tcells,offtarget>=min_offt_cell) %>% 
+    inner_join(gencode) %>% mutate(min_offt_cell=min_offt_cell) %>% 
+    select(-tcell)
+  return(filtered_genes_final)
+}
+
+gene_list_grouped_13 <- filter_celltypes(filtered_genes,tcells,genes,13) %>% mutate(tcells="all")
+gene_list_grouped_12 <- filter_celltypes(filtered_genes,tcells,genes,12) %>% mutate(tcells="all")
+
+gene_list_filtered <- full_join(gene_list_grouped_13,gene_list_grouped_12)
+
+gene_list_filtered %>% mutate(min_offt_cell=ifelse(min_offt_cell==12,"Less Stringent","Stringent")) %>%
+  group_by(min_offt_cell,threshold_comparison) %>%
+  summarise(n_gene=n()) %>% ungroup() %>%
+  mutate(group=paste(min_offt_cell,threshold_comparison,sep="_")) %>%
+  ggplot(aes(x=fct_reorder(threshold_comparison,n_gene,.desc=TRUE),y=n_gene,fill=group))+
+  geom_bar(stat='identity')+
+  facet_grid(.~min_offt_cell)+
+  xlab("T cell Threshold : Non-T cell Threshold")+
+  ylab("Number of Genes")+
+  ggtitle("Number of Genes After Threshold and Cell Type Filtering")+
+  scale_fill_manual(values=c('grey60','violetred4','grey60','violetred4','violetred4','grey60','violetred4','grey60',
+                             'grey60','grey60','violetred4','grey60','grey60','violetred4'))+
+  theme_bw()+
+  theme(plot.title=element_text(hjust=0.5),
+        legend.position = "none")
+```
+
+```{r gene_comparisons}
+gene_list_matrix <- gene_list_filtered %>% mutate(group=paste(min_offt_cell,threshold_comparison,sep="_")) %>%
+  filter(grepl("[0-9]*:31",group) | grepl("12_[0-9]*:16",group)) %>% ungroup() %>%
+  select(gene_name, group) %>% mutate(value=1) %>%
+  pivot_wider(names_from=group,values_from=value,values_fill=0) %>% column_to_rownames(var='gene_name')
+
+gene_list_matrix_annot <- gene_list_filtered %>% mutate(group=paste(min_offt_cell,threshold_comparison,sep="_")) %>%
+  filter(grepl("[0-9]*:31",group) | grepl("12_[0-9]*:16",group)) %>% ungroup() %>%
+  mutate(value=1) %>% transmute(group,threshold_comparison, 'Cell Type Threshold'=min_offt_cell) %>% 
+  unique() %>% separate(threshold_comparison,sep=":",into=c("T-cell Threshold","Non-Tcell Threshold")) %>%
+  column_to_rownames(var='group')
+
+pheatmap(gene_list_matrix,color = c("grey90", "violetred4"),legend_breaks = c(0,1),
+         main='Genes Lists After Filtering',angle_col = 45,annotation_col = gene_list_matrix_annot)
+```
+
+```{r gene_expr_heatmaps}
+genes_final_full <- gene_list_filtered %>% ungroup() %>% filter(min_offt_cell==12,threshold_comparison=="47:16") %>% select(gene_name,gene_id)
+genes_final_less <- gene_list_filtered %>% ungroup() %>% filter(min_offt_cell==12,threshold_comparison=="94:31") %>% select(gene_name,gene_id)
+
+final_expr_full <- median_expression_nobatchcorr %>% inner_join(genes_final_full) %>% select(-gene_id) %>%
+  column_to_rownames(var='gene_name') 
+final_expr_less <- median_expression_nobatchcorr %>% inner_join(genes_final_less) %>% select(-gene_id) %>%
+  column_to_rownames(var='gene_name') 
+
+final_expr_annot <- median_expression_nobatchcorr  %>% melt() %>% 
+  transmute("cell_type"=variable) %>% unique() %>% 
+  inner_join(cell_types) %>% 
+  mutate(`Cell Group`=ifelse(cell_type %in% tcells, "T cell","Non-T cell")) %>%
+  mutate(`Cell Type`=case_when(grepl("cd4_|th[0-9]|tfh",cell_type)~ "CD4+ T cell",
+                              grepl("cd8_",cell_type) ~ "CD8+ T cell",
+                              grepl("reg",cell_type) ~ "Regulatory T cell",
+                              grepl("cd34+",cell_type) ~ "CD34+ HSC",
+                              grepl("hepat+",cell_type) ~ "Hepatocyte",
+                              grepl("monocyte",cell_type) ~ "Monocyte",
+                              grepl("endo",cell_type) ~ "Endothelial",
+                           TRUE ~ cell_names)) %>% 
+  mutate(`Cell Type`=ifelse(grepl("stim",cell_type),paste(`Cell Type`,"(Stim)",sep=' '),`Cell Type`)) %>%
+  column_to_rownames(var='cell_type') %>% select(-cell_group,-cell_names)
+
+colors = list(`Cell Group` = c(`T cell` = "violetred4", `Non-T cell` = "grey80"),
+              `Cell Type` =c(`CD4+ T cell`='#253494',`CD4+ T cell (Stim)`='#225ea8',
+                             `Regulatory T cell`='#1d91c0',`CD8+ T cell`='#7fcdbb',`CD8+ T cell (Stim)`='#c7e9b4',
+                             `Naive B-cells`='#238443',Monocyte='#78c679',`CD34+ HSC`='#d9f0a3',
+                             Endothelial='#6a51a3',Hepatocyte='#9e9ac8',`Oocyte Cell`='#dd3497',`Sperm Cell`='#fa9fb5'))
+final_expr_full %>% pheatmap(cutree_cols = 2,scale='row',show_colnames = FALSE,annotation_col = final_expr_annot,
+                        annotation_colors = colors,
+                        main="Expression of Genes Across Cell Types\n (T cell Threshold:47, Non-T cell Threshold:16,\nCell Type Threshold: 12)")
+
+final_expr_less %>% pheatmap(cutree_cols = 2,scale='row',show_colnames = FALSE,annotation_col = final_expr_annot,
+                        annotation_colors = colors,
+                        main="Expression of Genes Across Cell Types\n (T cell Threshold:94, Non-T cell Threshold:31,\nCell Type Threshold: 12)")
+
+
+
+```
+
+```{r no_stim_lists}
+filtered_genes_nostim <- filter_genes(median_expression_nobatchcorr,tcells_nostim,offtarget_celltypes,threshold_comparisons)
+gene_list_grouped_12_nostim <- filter_celltypes(filtered_genes_nostim,tcells_nostim,genes,12) %>% mutate(tcells="no_stim")
+gene_list_filtered_nostim <- full_join(gene_list_grouped_13,gene_list_grouped_12) %>% mutate(tcells="all") %>% full_join(gene_list_grouped_12_nostim)
+
+
+gene_list_matrix_nostim <- gene_list_filtered_nostim %>% ungroup() %>%
+  filter(offtarget==12,threshold_comparison=="47:16" | threshold_comparison=="94:31") %>%
+  mutate(group=paste(tcells,threshold_comparison,sep="_")) %>%
+  select(gene_name, group) %>% mutate(value=1) %>%
+  pivot_wider(names_from=group,values_from=value,values_fill=0) %>% column_to_rownames(var='gene_name')
+
+gene_list_matrix_nostim_annot <- gene_list_filtered_nostim %>% ungroup() %>%
+  filter(offtarget==12,threshold_comparison=="47:16" | threshold_comparison=="94:31") %>%
+  mutate(group=paste(tcells,threshold_comparison,sep="_")) %>%
+  mutate(value=1) %>% select(group,threshold_comparison, tcells ) %>% 
+  unique() %>% separate(threshold_comparison,sep=":",into=c("T-cell Threshold","Non-Tcell Threshold")) %>%
+  column_to_rownames(var='group') 
+
+pheatmap(gene_list_matrix_nostim,color = c("grey90", "violetred4"),legend_breaks = c(0,1),
+         main='Genes Lists After Filtering',angle_col = 45,annotation_col = gene_list_matrix_nostim_annot)
+```
+
+```{r write_lists}
+final_expr_less %>% rownames_to_column(var='gene_name') %>%
+  fwrite('/projects/nknoetze_prj/ocr_prj/results/ocr-base-analysis/tcell_genes_median_expr_94:31.tsv',sep='\t',quote=FALSE)
+final_expr_full %>% rownames_to_column(var='gene_name') %>%
+  fwrite('/projects/nknoetze_prj/ocr_prj/results/ocr-base-analysis/tcell_genes_median_expr_47:16.tsv',sep='\t',quote=FALSE)
+```
+
+
+
+
+

@@ -1,0 +1,6 @@
+name: sra_dice_rsem_expression_ratios
+dependencies:
+- r-base==3.6.3
+- python==3.6.7
+- pandas==1.1.5
+- numpy==1.19.5

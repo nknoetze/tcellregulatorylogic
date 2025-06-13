@@ -43,6 +43,6 @@ if(additional_gene_file!=FALSE){
     background_genes <- subset(genes, t_o_rank > t_o_rank_thresh_background)$gene_id
 }
 ## 4 sigma targets
-write.table(target_genes, paste(outdir,sigma_threshold,'sigma_target_genes.txt',sep=''), col.names = F, row.names=F, quote=F)
+write.table(target_genes, paste(outdir,sigma_threshold,'sigma_target_genes_231006.txt',sep=''), col.names = F, row.names=F, quote=F)
 ## 4 sigma ZoE 3 sigma background
-write.table(background_genes, paste(outdir,(sigma_threshold)-1,'sigma_background_genes.txt',sep=''), col.names = F, row.names=F, quote=F)
+write.table(background_genes, paste(outdir,(sigma_threshold)-1,'sigma_background_genes_231006.txt',sep=''), col.names = F, row.names=F, quote=F)

@@ -29,8 +29,8 @@ if(grepl('longncRNA',gene_file)==TRUE){
   
 } else{
   gene_list <- fread(gene_file) %>%
-    select(gene_id, gene_group,gene_name) %>%
-  mutate(gene_group=ifelse(gene_group=="non_specific","Non-Specific T-cell Gene", "T-cell Specific Gene"))
+    select(gene_id, gene_group,gene_name) #%>%
+  #mutate(gene_group=ifelse(gene_group=="non_specific","Non-Specific T-cell Gene", "T-cell Specific Gene"))
   types <- c('protein_coding','TR_C_gene','IG_C_gene')
 }
 
@@ -40,7 +40,8 @@ gencode <- fread(gencode_file) %>%
 
 #Get the gene name and id's for later :) 
 gencode_genes <- gencode %>% select(gene_name,gene_id) %>% unique() %>% left_join(gene_list) %>%
-  mutate(gene_group=ifelse(is.na(gene_group),'Other',gene_group)) %>% distinct(gene_id,gene_name,gene_group) 
+  #mutate(gene_group=ifelse(is.na(gene_group),'Other',gene_group)) %>% 
+  distinct(gene_id,gene_name)#,gene_group) 
 
 #Get the TSS for each promoter based on the strand
 #REMOVE TRANSCRIPT ID. For a single gene, different transcripts can have the same TSS

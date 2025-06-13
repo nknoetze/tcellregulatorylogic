@@ -30,11 +30,9 @@ print("Reading in the Data")
 #gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv') %>% select(gene_name,gene_id) %>% unique()
 gencode <- fread(gencode) %>% select(gene_name,gene_id) %>% unique()
 #gene_list <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv')
-#gene_list <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_ncRNA_list.tsv')
 gene_list <- fread(gene_file)
 
 #ocr_file_name <- sub('\\..*$', '', basename('/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_annotated_tidy.tsv'))
-#ocr_file_name <- sub('\\..*$', '', basename('/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/test_lincRNA.tsv'))
 ocr_file_name <- sub('\\..*$', '', basename(filtered_ocr_file))
 ocr_file_name <- sub('_annotated', '', ocr_file_name)
 #ocrs <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_annotated_tidy.tsv') %>%

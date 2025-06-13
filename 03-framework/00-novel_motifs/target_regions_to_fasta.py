@@ -141,8 +141,6 @@ if __name__ == "__main__":
 
     ## convert to pybedtools object
     bed_regions = pybedtools.BedTool("\n".join([r for r in regions]), from_string=True)
-    ## ONLY WRITE ONE SEQUENCE FOR DEBUGGING
-    ##bed_regions = pybedtools.BedTool("\n".join([list(regions.keys())[0]]), from_string=True)
 
     ## get sequences
     a = bed_regions.sequence(fi=REF_GENOME_FASTA)     ## pybedtools sequence (NOT temp file)

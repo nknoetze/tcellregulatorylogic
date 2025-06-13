@@ -1,0 +1,101 @@
+### --------------------------------------- ###
+###   Load source scripts&libraries         ###
+### --------------------------------------- ###
+source('/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/file.metrics.fx.R')
+### ----------------------------- ###
+###        SET UP ARGUMENTS       ###
+### ----------------------------- ###
+# create parser object
+parser <- ArgumentParser()
+parser$add_argument("-gen", "--gene_file", help="Path to the gene list")
+parser$add_argument("-gc", "--gencode", help="Path to the parse gencode v19 file")
+parser$add_argument("-ocr", "--linked_ocrs", help="Path to the linked OCR file")
+parser$add_argument("-o", "--outdir", help="Path to the output directory")
+
+args <- parser$parse_args()
+gene_file <- args$gene_file
+gencode_file <- args$gencode
+linked_ocr_file <- args$linked_ocrs
+outdir <- args$outdir
+
+### ----------------------------- ###
+###        READ IN FILES          ###
+### ----------------------------- ###
+print("Reading in the Data")
+if(grepl('longncRNA',gene_file)==TRUE){
+  gene_list <- fread(gene_file) %>%
+    select(gene_id,gene_name)
+    types <- c('lincRNA','antisense', 'sense_intronic', 'sense_overlapping')
+  
+} else{
+  gene_list <- fread(gene_file) %>%
+    select(gene_id, gene_group,gene_name) %>%
+  mutate(gene_group=ifelse(gene_group=="non_specific","Non-Specific T-cell Gene", "T-cell Specific Gene"))
+  types <- c('protein_coding','TR_C_gene','IG_C_gene')
+}
+
+#Read in the gencode file. only keeps genes on canonical and ChrX chromosomes.
+#Remove problematic transcripts
+# if(GENE_TYPE=='lincRNA'){
+#   gene_list <- fread(gene_file) %>%
+#     select(gene_id,gene_name) %>%
+#     mutate(gene_group='lincRNA')
+#   types <- c('lincRNA')
+  
+# } else if(GENE_TYPE=='protein_coding'){
+#   gene_list <- fread(gene_file) %>%
+#     select(gene_id, gene_group,gene_name) %>%
+#     mutate(gene_group=ifelse(gene_group=="non_specific","Non-Specific T-cell Gene", "T-cell Specific Gene"))
+#   types <- c('protein_coding','TR_C_gene','IG_C_gene')
+# }
+gencode <- fread(gencode_file) %>% 
+  filter(type=='transcript',gene_type %in% types, transcript_type %in% types) %>% 
+  filter(!(grepl("chrY|chrM",chrom))) 
+
+#Get the gene name and id's for later :) 
+gencode_genes <- gencode %>% select(gene_name,gene_id) %>% unique() %>% left_join(gene_list) %>%
+  mutate(gene_group=ifelse(is.na(gene_group),'Other',gene_group)) %>% distinct(gene_id,gene_name,gene_group) 
+
+#Get the TSS for each promoter based on the strand
+#REMOVE TRANSCRIPT ID. For a single gene, different transcripts can have the same TSS
+#So only keep the gene id, and the non-redundnant TSS
+tss <- gencode %>% mutate(tss=ifelse(strand=='+',start,end)) %>%
+  transmute('promoter_id'=gene_id,tss,'promoter_name'=gene_name) %>% unique()
+
+#Get the linked OCRs and add the gencode gene information (gene name and gene group)
+#based on the query gene (gene id)
+linked_ocrs <- fread(linked_ocr_file) %>%
+  rename('gene_id'=query_gene) %>% 
+  inner_join(gencode_genes,by='gene_id')
+
+##########################################
+##      GENE GROUP UNIQUE OCRS          ##
+##########################################
+print('getting gene group specific ocrs')
+#HAVE TO FILTER GENE LIST FIRST
+gene_group_specific_ocrs <- get_gene_group_specific_ocrs(linked_ocrs)
+## june 28 2024
+##NOTE: THIS REQUIRES LOOKING AT THE LABEL ASSIGNED TO EACH GENE. WHICH WE DID NOT UPDATE
+##  NEED TO UPDATE THIS TO CONSIDER THE TARGET GENE LIST
+##########################################
+##         GENE SPECIFIC OCRS           ##
+##########################################
+print('getting gene specific ocrs')
+#HAVE TO FILTER GENE LIST FIRST
+gene_specific_ocrs <- get_gene_specific_ocrs(linked_ocrs)
+## june 28 2024
+##NOTE: THIS REQUIRES LOOKING AT THE LABEL ASSIGNED TO EACH GENE. WHICH WE DID NOT UPDATE
+##  NEED TO UPDATE THIS TO CONSIDER THE TARGET GENE LIST
+
+##########################################
+##             OCR-TSS DIST             ##
+##########################################
+print('Calculating distance of OCRs to nearest TSS')
+ocr_tss_dist <- get_ocrs_dists(linked_ocrs,gencode_genes)
+
+##########################################
+##         WRITE OUTPUT FILES           ##
+##########################################
+fwrite(gene_group_specific_ocrs,paste(outdir,'pulled_ocrs_gene_group_specific.tsv',sep=''),sep='\t',quote=FALSE)
+fwrite(gene_specific_ocrs,paste(outdir,'pulled_ocrs_gene_specific.tsv',sep=''),sep='\t',quote=FALSE)
+fwrite(ocr_tss_dist,paste(outdir,'pulled_ocrs_tss_dist.tsv',sep=''),sep='\t',quote=FALSE)

@@ -22,12 +22,10 @@ outdir <- args$outdir
 ### ----------------------------- ###
 
 #gene_list <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv')
-#gene_list <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_longncRNA_list.tsv')
 gene_list <- fread(gene_file)
 genes <- gene_list %>% distinct(gene_id,gene_name)
 
 #pulled_ocrs <- fread('/projects/nknoetze_prj/ocr_prj/results/ocr_metric_files/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged/Loop_2.5kb/merged_interactions/connectivity8/tss_within/pulled_ocrs_tss_dist.tsv') 
-#pulled_ocrs <- fread('/projects/nknoetze_prj/ocr_prj/results/pulled_ocrs/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged/Loop_2.5kb/merged_interactions/connectivity8/tss_within/pulled_ocrs_by_gene_lincRNA.tsv.gz') 
 pulled_ocrs <- fread(pulled_ocr_file) 
 
 bin_size=strsplit(pulled_ocr_file,split='/')[[1]][8]

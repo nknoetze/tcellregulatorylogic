@@ -34,8 +34,6 @@ if(grepl('longncRNA',gene_file)==TRUE){
   types <- c('protein_coding','TR_C_gene','IG_C_gene')
 }
 
-#Read in the gencode file. only keeps genes on canonical and ChrX chromosomes.
-#Remove problematic transcripts
 gencode <- fread(gencode_file) %>% 
   filter(type=='transcript',gene_type %in% types, transcript_type %in% types) %>% 
   filter(!(grepl("chrY|chrM",chrom))) 

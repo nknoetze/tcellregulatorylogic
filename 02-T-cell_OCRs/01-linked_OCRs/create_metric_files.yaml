@@ -3,7 +3,7 @@
 # -------------------------------------------------------------------#
 CONDA_ENV: /projects/nknoetze_prj/ocr_prj/config/environments/ocr-analyses-env.yaml
 GENCODE: /projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv
-GENE_LIST: /projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_longncRNA_list.tsv
+GENE_LIST: /projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv
 FILTERED_GENE_DIR: /projects/nknoetze_prj/ocr_prj/data/processed/gene_lists
 TIDY_OCR_FILE_DIR: /projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase
 INTERACTIONS_DIR: /projects/nknoetze_prj/ocr_prj/data/processed/interactions/DICE/shared
@@ -25,4 +25,4 @@ FILTERED_OCR_DATA_NAME: ['meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged']
 BIN_SIZE: ['Loop_2.5kb']
 MERGE_PARAM: ['connectivity8']
 INTERACTION_ANNOTATION: ['tss_within']
-GENE_TYPE: ['longncRNA']
+GENE_TYPE: ['protein-coding']

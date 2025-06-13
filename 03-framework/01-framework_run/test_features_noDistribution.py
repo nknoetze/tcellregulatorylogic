@@ -368,7 +368,6 @@ if __name__ == "__main__":
         for region_type in region_categories:
             a = target_regions[region_type].sequence(fi=REF_GENOME_FASTA, name=True)     ## pybedtools sequence (NOT temp file)
             target_region_seqs[region_type] = open(a.seqfn).read()            ## fasta entries
-            #target_region_seqs[region_type] = a.seqfn            ## fasta entries
 
         ## Test Features
         statprint("Measuring features in target regions...")
@@ -383,19 +382,12 @@ if __name__ == "__main__":
             for func in FUNCTIONS_TO_RUN:
                 for feat in ocrmetrics_features[func]:
                     if VERB: statprint("\t...{}:{}".format(func, feat))
-                    # pass all data to keep things standard. Function will receive all and only use what it needs.
-                    # target_feature_results[region_type][func][feat] = FUNCTIONS_TO_RUN[func](region_coords = target_regions[region_type],
-                    #                                                                     region_sequences = target_region_seqs[region_type],
-                    #                                                                     feature = feat)
                     metric_iq.put(["target\t0\t{}\t{}\t{}".format(region_type, func, feat), func, feat, target_regions[region_type], target_region_seqs[region_type], target_region_gene_distances[region_type], target_genes, target_region_genes[region_type],args.NUM_MOTIFS,args.REF_FASTA,args.CHROM_SIZES_FILE,args.REF_GENOME_BED,args.EXCL_REGIONS_BED,args.SCRAMBLE_METHOD,"target"])
                     metric_num_submitted += 1
 
         ## wait for target results to finish so that we can calculate p-val as we go
         statprint("All 'target' jobs submitted to queue...")
-        ## Send END signal to queues (one for each subprocess)
-        # for i in range(args.maxNumberProcesses):
-        #     metric_iq.put(SENTINEL)
-        #deletion_iq.put(SENTINEL)
+
 
         statprint("Monitoring queue to parse completed 'target' jobs...")
         while metric_num_finished < metric_num_submitted:
@@ -405,7 +397,6 @@ if __name__ == "__main__":
                 for item in res:    ## because I write to metric_oq in chunks to save IO.
                     ## completed job
                     metric_num_finished += 1
-                    #if metric_num_finished % 100000 == 0: statprint("{} jobs finished processing...".format(metric_num_finished))
                     if metric_num_finished % (int(0.1*metric_num_submitted) + 1) == 0: statprint("{} jobs finished processing...".format(metric_num_finished))
                     jobname, valuedict = item
                     genegroup, repnum, region_type, func, feat = jobname.split("\t")
@@ -413,10 +404,6 @@ if __name__ == "__main__":
                     for metric in valuedict:
                         if genegroup == "target":
                             target_feature_results[region_type][func][feat][metric] = valuedict[metric]
-                        # elif genegroup == "background":
-                        #     if metric not in background_feature_results[region_type][func][feat]:
-                        #         background_feature_results[region_type][func][feat][metric] = []
-                        #     background_feature_results[region_type][func][feat][metric].append(valuedict[metric])
 
         ###########
         ## dictionary to hold feature results for background sets
@@ -433,7 +420,6 @@ if __name__ == "__main__":
                     ## {"all": {feature1: value, feature2: value, ...},
                     #   "promoter": {feature1: value, feature2: value, ...},
                     #   "distal": {feature1: value, feature2: value, ...}}
-                    # background_feature_results = {region_cat: {func: {feat: {} for feat in ocrmetrics_features[func]} for func in FUNCTIONS_TO_RUN} for region_cat in region_categories}
 
                     # loop through region types
                     for region_type in region_categories:
@@ -444,7 +430,6 @@ if __name__ == "__main__":
                             if VERB: statprint("\t...{}:{}".format(func, feat))
                             # pass all data to keep things standard. Function will receive all and only use what it needs.
                             #since we are shuffling the target gene regions, feed in target regions again!
-                            # metric_iq.put(["background\t0\t{}\t{}\t{}".format(region_type, func, feat), func, feat, target_regions[region_type], target_region_seqs[region_type], target_region_gene_distances[region_type], target_genes, target_region_genes[region_type],args.NUM_MOTIFS])
                             metric_iq.put(["background\t0\t{}\t{}\t{}".format(region_type, func, feat), func, feat, target_regions[region_type], target_region_seqs[region_type], target_region_gene_distances[region_type], target_genes, target_region_genes[region_type],args.NUM_MOTIFS,args.REF_FASTA,args.CHROM_SIZES_FILE,args.REF_GENOME_BED,args.EXCL_REGIONS_BED,args.SCRAMBLE_METHOD,"background"])
                             metric_num_submitted += 1
             else:
@@ -516,7 +501,6 @@ if __name__ == "__main__":
                 for region_type in region_categories:
                     a = sampled_regions[region_type].sequence(fi=REF_GENOME_FASTA, name=True)    ## pybedtools sequence (NOT temp file)
                     sampled_region_seqs[region_type] = open(a.seqfn).read()            ## fasta entries
-                    #sampled_region_seqs[region_type] = a.seqfn            ## fasta entries
 
                 ## Test Features
                 for region_type in region_categories:
@@ -524,8 +508,7 @@ if __name__ == "__main__":
                     for func in FUNCTIONS_TO_RUN:
                         if func in NON_SHUFFLING_FUNCTIONS:
                             for feat in ocrmetrics_features[func]:
-                                # pass coords AND sequences to keep things standard. Function will receive both and only use what it needs.
-                                # metric_iq.put(["background\t{}\t{}\t{}\t{}".format(i, region_type, func, feat), func, feat, sampled_regions[region_type], sampled_region_seqs[region_type], sampled_region_gene_distances[region_type], sampled_genes, sampled_region_genes[region_type],args.NUM_MOTIFS])
+
                                 metric_iq.put(["background\t{}\t{}\t{}\t{}".format(i, region_type, func, feat), func, feat, sampled_regions[region_type], sampled_region_seqs[region_type], sampled_region_gene_distances[region_type], sampled_genes, sampled_region_genes[region_type],args.NUM_MOTIFS,args.REF_FASTA,args.CHROM_SIZES_FILE,args.REF_GENOME_BED,args.EXCL_REGIONS_BED,args.SCRAMBLE_METHOD,"background"])
                                 metric_num_submitted += 1
 
@@ -547,7 +530,6 @@ if __name__ == "__main__":
                 for item in res:    ## because I write to metric_oq in chunks to save IO.
                     ## completed job
                     metric_num_finished += 1
-                    #if metric_num_finished % 100000 == 0: statprint("{} jobs finished processing...".format(metric_num_finished))
                     if metric_num_finished % (int(0.1*metric_num_submitted) + 1) == 0: statprint("{} jobs finished processing...".format(metric_num_finished))
                     jobname, valuedict = item
                     genegroup, repnum, region_type, func, feat = jobname.split("\t")
@@ -557,9 +539,7 @@ if __name__ == "__main__":
                             target_feature_results[region_type][func][feat][metric] = valuedict[metric]
                         elif genegroup == "background":
                             if metric not in background_feature_results[region_type][func][feat]:
-                                #background_feature_results[region_type][func][feat][metric] = []
                                 background_feature_results[region_type][func][feat][metric] = [0,0] ## sum, p-value count
-                            #background_feature_results[region_type][func][feat][metric].append(valuedict[metric])
                             ## sum of values
                             background_feature_results[region_type][func][feat][metric][0] += valuedict[metric]
                             ## number values >= target value
@@ -627,34 +607,8 @@ if __name__ == "__main__":
                 for metric in out_data[region_cat][func][feat]:
                     ## get target value, 0 if not exists
                     ## NOTE that we are only populating missing metrics with 0. To date, only kmers and fimo comotifs may not report values for all metrics.
-                    #target_val = 0
-                    #if metric in target_feature_results[region_cat][func][feat]:
-                    #    target_val = target_feature_results[region_cat][func][feat][metric]
                     target_val = target_feature_results[region_cat][func][feat].get(metric,0)
-                    
-                    ## get background values, pad with 0 if not equal to numiter.
-                    #background_vals = [0]*args.NUM_ITER
-                    #background_vals= background_feature_results[region_cat][func][feat].get(metric,[0]*args.NUM_ITER)
-                    # if metric in background_feature_results[region_cat][func][feat]:
-                    #     ## we have at least one background value
-                    #     for i in range(len(background_feature_results[region_cat][func][feat][metric])):
-                    #         background_vals[i] = background_feature_results[region_cat][func][feat][metric][i]
 
-                    ## Test where Target Gene List result falls on Random Gene List result distribution, compute p-value
-                    ## count number of iterations with value greater than or equal to target
-                    #num_greater = sum([x >= target_val for x in background_vals])
-                    ## count number of iterations with value less than or equal to target
-                    #num_lower = sum([x <= target_val for x in background_vals])
-                    ## we want to count how many background sets are "more extreme". So, , take the min of num_greater and num_lower
-                    #num_more_extreme = min(num_greater, num_lower)
-                    
-                    ## calculate average of background:
-                    #background_average = sum(background_vals)/len(background_vals)
-                    
-                    
-
-                    ## calculate p-value
-                    #p_val = num_more_extreme / args.NUM_ITER
                     
                     ## because we are not tracking an array and instead just a value, we need to check that the metric exists.
                     if metric in background_feature_results[region_cat][func][feat]:
@@ -670,11 +624,6 @@ if __name__ == "__main__":
                         out_data[region_cat][func][feat][metric]["target_value"] = target_val
                         out_data[region_cat][func][feat][metric]["background_mean"] = background_average
                         out_data[region_cat][func][feat][metric]["p-value"] = p_val
-                        ## to make sure output file not huuuuuge, limit background values to 1k (MAX_BACKGROUND_VALS_WRITTEN).
-                        #if len(background_vals) > args.MAX_BACKGROUND_VALS_WRITTEN:
-                        #    background_vals = random.sample(background_vals, args.MAX_BACKGROUND_VALS_WRITTEN)
-                        #output_data[region_cat][func][feat][metric]["background_values"] = ",".join([str(x) for x in background_vals])
-                        #out_data[region_cat][func][feat][metric]["background_values"] = ",".join(map(str, background_vals))
 
     output_data = {region_cat: {func: {feat: {metric: data for metric, data in out_data[region_cat][func][feat].items() if data["p-value"] != -1} for feat in out_data[region_cat][func]} for func in out_data[region_cat]} for region_cat in out_data}
 
@@ -706,18 +655,8 @@ if __name__ == "__main__":
                                     target_val = output_data[region_cat][func][feat][metric]["target_value"],
                                     background_val = output_data[region_cat][func][feat][metric]["background_mean"],
                                     p_val = output_data[region_cat][func][feat][metric]["p-value"],
-                                    #bg_vals = output_data[region_cat][func][feat][metric]["background_values"]
                                 )
-                                # out.write("{datatype}\t{feature}\t{metric}\t{region_set}\t{target_val}\t{background_val}\t{p_val}\t{bg_vals}\n".format(
-                                #     datatype = func,
-                                #     feature = metric,
-                                #     metric = "{}mer".format(len(metric)),
-                                #     region_set = region_cat,
-                                #     target_val = output_data[region_cat][func][feat][metric]["target_value"],
-                                #     background_val = output_data[region_cat][func][feat][metric]["background_mean"],
-                                #     p_val = output_data[region_cat][func][feat][metric]["p-value"],
-                                #     bg_vals = output_data[region_cat][func][feat][metric]["background_values"]
-                                # ))
+
                             else:
                                 lines="{datatype}\t{feature}\t{metric}\t{region_set}\t{target_val}\t{background_val}\t{p_val}\n".format(
                                     datatype = func,
@@ -727,18 +666,8 @@ if __name__ == "__main__":
                                     target_val = output_data[region_cat][func][feat][metric]["target_value"],
                                     background_val = output_data[region_cat][func][feat][metric]["background_mean"],
                                     p_val = output_data[region_cat][func][feat][metric]["p-value"],
-                                    #bg_vals = output_data[region_cat][func][feat][metric]["background_values"]
                                 )
-                                # out.write("{datatype}\t{feature}\t{metric}\t{region_set}\t{target_val}\t{background_val}\t{p_val}\t{bg_vals}\n".format(
-                                #     datatype = func,
-                                #     feature = metric,
-                                #     metric = feat,
-                                #     region_set = region_cat,
-                                #     target_val = output_data[region_cat][func][feat][metric]["target_value"],
-                                #     background_val = output_data[region_cat][func][feat][metric]["background_mean"],
-                                #     p_val = output_data[region_cat][func][feat][metric]["p-value"],
-                                #     bg_vals = output_data[region_cat][func][feat][metric]["background_values"]
-                                # ))
+
                         else:
                             lines="{datatype}\t{feature}\t{metric}\t{region_set}\t{target_val}\t{background_val}\t{p_val}\n".format(
                                 datatype = func,
@@ -748,18 +677,7 @@ if __name__ == "__main__":
                                 target_val = output_data[region_cat][func][feat][metric]["target_value"],
                                 background_val = output_data[region_cat][func][feat][metric]["background_mean"],
                                 p_val = output_data[region_cat][func][feat][metric]["p-value"],
-                                #bg_vals = output_data[region_cat][func][feat][metric]["background_values"]
                             )    
-                            # out.write("{datatype}\t{feature}\t{metric}\t{region_set}\t{target_val}\t{background_val}\t{p_val}\t{bg_vals}\n".format(
-                            #     datatype = func,
-                            #     feature = feat,
-                            #     metric = metric,
-                            #     region_set = region_cat,
-                            #     target_val = output_data[region_cat][func][feat][metric]["target_value"],
-                            #     background_val = output_data[region_cat][func][feat][metric]["background_mean"],
-                            #     p_val = output_data[region_cat][func][feat][metric]["p-value"],
-                            #     bg_vals = output_data[region_cat][func][feat][metric]["background_values"]
-                            # ))
                         output_lines.append(lines)
     out.write("".join(output_lines))
     out.close()

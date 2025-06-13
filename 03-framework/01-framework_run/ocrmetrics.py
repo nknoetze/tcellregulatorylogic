@@ -41,14 +41,14 @@ def init(source_data_dir, functions_to_load,num_motifs):
     global feature_list
 
     ## get file paths
-    #repeatmasker_file = os.path.join(source_data_dir, "rmsk_filtered.txt")
-    #ocr_group_specific_file = os.path.join(source_data_dir, "group_specific_ocrs.tsv")
-    #ocr_single_gene_specific_file = os.path.join(source_data_dir, "gene_specific_ocrs.tsv")
+    repeatmasker_file = os.path.join(source_data_dir, "rmsk_filtered.txt")
+    ocr_group_specific_file = os.path.join(source_data_dir, "group_specific_ocrs.tsv")
+    ocr_single_gene_specific_file = os.path.join(source_data_dir, "gene_specific_ocrs.tsv")
     jaspar_file = os.path.join(source_data_dir, "jaspar_filtered.txt")
-    #kmer_file = os.path.join(source_data_dir, "kmers.txt")
+    kmer_file = os.path.join(source_data_dir, "kmers.txt")
     fimo_file = os.path.join(source_data_dir, "fimo_motifs.txt")
     ##not actually used...... may delete later lols.
-    #filtered_fimo_file = os.path.join(source_data_dir, "fimo_motifs_expressed.txt")
+    filtered_fimo_file = os.path.join(source_data_dir, "fimo_motifs_expressed.txt")
 
     ## load data and populate features
 
@@ -90,14 +90,6 @@ def init(source_data_dir, functions_to_load,num_motifs):
         elif "kmer" in func and "kmer" not in data:
             data["kmer"] = [x.rstrip() for x in open(kmer_file)]
 
-        #if function is fimo co motifs, use filtered meme file. Otherwise regular.
-        # elif func=="fimo_comotif_geneCount":
-        #     if max(num_motifs)>2:
-        #         data["fimo_comotif"] = filtered_fimo_file
-        #     else:
-        #         data["fimo_comotif"] = fimo_file
-        # elif func=="fimo" or func =="fimo_geneCount" and "fimo" not in data:
-        #     data["fimo"] = fimo_file
         elif "fimo" in func and "fimo" not in data:
             data["fimo"] = fimo_file
 
@@ -552,7 +544,6 @@ def fimo(region_sequences, jobname, *args, **kwargs):
     ##                        Set up fasta file and directories                    ##
     #################################################################################  
     jobname = "-".join(jobname.split("\t") + [''.join(random.choice(string.ascii_lowercase) for i in range(10))])   ## switch tabs for dashes, add random 10character string.
-    #fimo_outdir='/projects/nknoetze_prj/nknoetze_scratch/ocr_prj/results/{}'.format(jobname)
     outdir='/tmp/{}'.format(jobname)
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -647,11 +638,7 @@ def fimo(region_sequences, jobname, *args, **kwargs):
     
     #remove the temp files
     shutil.rmtree(outdir)
-    #os.remove('{}/fimo.tsv'.format(fimo_outdir))
-    #os.remove(fasta_file)
     
-    #return {"alt_motif_occurrence": motif_alt_id_dict, "motif_occurrence": motif_id_dict}
-    #return motif_id_dict.update(motif_alt_id_dict)
     return {**motif_id_dict, **motif_alt_id_dict}
 
 def fimo_shuffling(region_coords, region_sequences, region_set, jobname, ref_fasta, chrom_sizes, ref_bed, excl_regions_bed, *args, **kwargs):
@@ -924,7 +911,6 @@ def fimo_geneCount_shuffling(region_coords,region_sequences,region_set,jobname,r
         regions_bedtool=pybedtools.BedTool.from_dataframe(regions_to_shuffle)
 
         #randomly reposition regions
-        #shuffled=regions_bedtool.shuffle(g=chrom_sizes, noOverlapping=True,incl=ref_bed,maxTries=5000).to_dataframe()
         shuffled=regions_bedtool.shuffle(g=chrom_sizes, noOverlapping=True,maxTries=5000, excl=excl_regions_bed).to_dataframe()
         #merge with the original regions file
         #since we kept the 'original' ocr/region_id, we can make sure that a repositioned region is

@@ -1,0 +1,11 @@
+WORKING_DIR: "/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/"
+RUN_ID: "230710"
+WINDOWS: [12]
+MISMATCHES: [1]
+
+REGIONS: "/projects/nknoetze_prj/ocr_prj/results/ocr_metric_files/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged/Loop_2.5kb/merged_interactions/connectivity8/tss_within/pulled_ocrs_tss_dist.tsv"
+
+
+TARGET_GENES: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/ocrs/4sigma_target_genes.txt"
+REF_FASTA: "/projects/sbrown_prj/220318_DI/data/raw/ref/GRCh37.p13.genome.fa"
+JASPAR_DB: "/projects/nknoetze_prj/ocr_prj/data/raw/jaspar/20230605205709_JASPAR2022_combined_matrices_2090_human_meme.txt"

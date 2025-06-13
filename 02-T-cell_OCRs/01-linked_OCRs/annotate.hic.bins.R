@@ -110,43 +110,5 @@ if(is_merged=='merged'){
     unique()
 }
 
-########################################################################
-####### BIN WITHIN 2.5KB UPSTREAM OF TSS or 500bp downstream TSS #######
-########################################################################
-tss_2kb_ranges <- gencode_v19 %>%
-  mutate(tss_start=ifelse(strand=="+",tss-2500,tss+500),
-         tss_end=ifelse(strand=="+",tss+500,tss+2500)) %>%
-  select(chrom,tss_start,tss_end,gene_id, gene_name) %>% 
-  makeGRangesFromDataFrame(.,start.field = c('tss_start'),end.field = c('tss_end'), seqnames.field = c('chrom'),ignore.strand = TRUE,keep.extra.columns = TRUE)
-
-
-bin1_2kb_annotations <- map_genes(bin1,bin1_ranges,tss_2kb_ranges,'overlap')%>% transmute('chrom1'=chr,'s1'=start,'e1'=end,'bin1_gene_id'=gene_id,'bin1_id'=bin_id)
-bin2_2kb_annotations <- map_genes(bin2,bin2_ranges,tss_2kb_ranges,'overlap') %>% transmute('chrom2'=chr,'s2'=start,'e2'=end,'bin2_gene_id'=gene_id,'bin2_id'=bin_id)
-
-if(is_merged=='merged'){
-  interactions_tss_2kb <- interactions %>% select(interaction_id,bin1_id,s1,e1, bin2_id,chrom2,s2,e2,StrongConn_Monocyte,StrongConn_NaiveK,StrongConn_NaiveB,StrongConn_CD4Naive,StrongConn_CD8Naive) %>% 
-    merge(bin1_2kb_annotations) %>% 
-    merge(bin2_2kb_annotations,by=c('bin2_id','chrom2','s2','e2')) %>%
-    select(interaction_id,bin1_id,chrom1,s1,e1,bin1_gene_id, bin2_id,chrom2,s2,e2,bin2_gene_id,StrongConn_Monocyte,StrongConn_NaiveK,StrongConn_NaiveB,StrongConn_CD4Naive,StrongConn_CD8Naive) %>%
-    unique()
-}else{
-  interactions_tss_2kb <- interactions %>% select(interaction_id,bin1_id,s1,e1, bin2_id,chrom2,s2,e2,qval_Monocyte,qval_NaiveK,qval_NaiveB,qval_CD4Naive,qval_CD8Naive) %>% 
-    merge(bin1_2kb_annotations) %>% 
-    merge(bin2_2kb_annotations,by=c('bin2_id','chrom2','s2','e2')) %>%
-    select(interaction_id,bin1_id,chrom1,s1,e1,bin1_gene_id, bin2_id,chrom2,s2,e2,bin2_gene_id,qval_Monocyte,qval_NaiveK,qval_NaiveB,qval_CD4Naive,qval_CD8Naive) %>%
-    unique() 
-}
-
-if(prefix=='none'){
-  outdir <- paste(outdir,'/',bin_size,'/',GENE_TYPE,'/',sep='')
-}else{
-  outdir <- paste(outdir,'/',bin_size,'/',prefix,'/',GENE_TYPE,'/',sep='')
-}
-
-if(is_merged=='merged'){
-  outdir=paste(outdir,'merged_',sep='')
-}
-
-fwrite(interactions_tss_2kb,paste(outdir,'interactions_tss_2.5kb.tsv',sep=''),sep='\t',quote=FALSE)
 fwrite(interactions_tss_within,paste(outdir,'interactions_tss_within.tsv',sep=''),sep='\t',quote=FALSE)
 

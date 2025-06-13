@@ -179,7 +179,6 @@ if __name__ == "__main__":
                                 if len(indexes_to_merge) > 2:
                                     sys.exit("Oh dear, there should only ever be two sets that need merging...")
                                 else:
-                                    # groups[indexes_to_merge[0]].update(groups[indexes_to_merge[1]])
                                     groups[indexes_to_merge[0]] += groups[indexes_to_merge[1]]
                                     del groups[indexes_to_merge[1]]
 

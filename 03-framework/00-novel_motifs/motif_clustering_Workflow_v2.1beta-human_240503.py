@@ -78,15 +78,12 @@ if __name__ == "__main__":
     # Remove the last 3 rows
     tomtom = tomtom.iloc[:-3]
 
-    #print(tomtom.head())
     #convert to int
     tomtom[['Optimal_offset', 'Overlap']] = tomtom[['Optimal_offset', 'Overlap']].astype(int)
-    #print(tomtom.head())
     
     sim = tomtom.pivot_table(index='Query_ID', columns='Target_ID', values='E-value', fill_value=np.nan)
     cols = sim.columns
     rows = sim.index
-    #print(tomtom['Target_ID'].drop_duplicates())
 
     sim = sim[cols].loc[rows]
     x = sim.values
@@ -109,11 +106,9 @@ if __name__ == "__main__":
     Z = linkage(sim, method = 'complete', metric = 'correlation')
 
     cl = fcluster(Z, 0.7, criterion='distance')
-    #o = dendrogram(Z, no_plot=True)['leaves']
 
     print(f'Number of motif clusters: {max(cl)}')
 
-    #motif_annot_df = pd.DataFrame({'motif_id':sim.index, 'cluster':cl}).merge(df_motif_info.reset_index(), on='motif_id', how='left').set_index('motif_id')
     motif_annot_df = pd.DataFrame({'motif_id':sim.index, 'cluster':cl}).set_index('motif_id')
     motif_annot_df['cluster'] = 'AC' + motif_annot_df['cluster'].astype(str).str.zfill(4)
     motif_annot_df.head()
@@ -255,10 +250,7 @@ if __name__ == "__main__":
 
         alignment_df = alignment_df.merge(df.reset_index(), left_on='motif', right_on='motif_id')
         
-        #alignment_df.sort_values(by='tf_name', inplace=True)
         alignment_df.reset_index(inplace=True)
-
-        #print(alignment_df)
         
         n = len(alignment_df)
         l = min(alignment_df['l_offset'])
@@ -329,9 +321,6 @@ if __name__ == "__main__":
             ax.xaxis.set_visible(False)
             ax.set_yticks([])
             
-            #source_id = str(row['source_id'])
-            #source_id = source_id[:10] + '...' if len(source_id) > 10 else source_id
-            #tf_name = str(row['tf_name'])  + '(' + str(row['motif_type']) + ')'
             source_id = motif_id
             tf_name = ""
 
@@ -353,9 +342,7 @@ if __name__ == "__main__":
         ax.set_ylabel('Archetype\nconsensus', rotation=0, ha='right', va='center', fontname="Courier", fontsize='large', fontweight='bold', color='r')
         
         cluster_id = str(alignment_df['cluster'][0])
-        #gene_family = alignment_df['tf_name'].str.replace('[\-0-9]+$', '').value_counts().index[:2].str.cat(sep='/')
         gene_family = "gene_family"
-        #dbd = alignment_df['family_name'].astype(str).value_counts().index[0].replace(' ', '_')
         dbd = "dbd"
         cluster_name = cluster_id #+ ':' + gene_family + ':' + dbd
 
@@ -368,35 +355,6 @@ if __name__ == "__main__":
         
         fig.suptitle(cluster_name.upper(), fontname="IBM Plex Mono", fontweight='bold', fontsize='large', y=1-(.5/figh), va='center')
         plt.savefig(os.path.join(args.PLOT_DIR, f'{cluster_id}.pdf'))
-        #plt.savefig(f'/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/05_clustered_filtered_clusters/clusters/{cluster_id}.png')
-        
-        #
-        # w = avg_pwm.shape[0]
-        
-        # fig = plt.figure()
-        # #fig.set_size_inches(w*0.125+0.5, 0.75)
-        # fig.set_size_inches(w*0.125, 0.5)
-        
-        # figw, figh = fig.get_size_inches() 
-        
-        # gs = mgridspec.GridSpec(1, 1)
-        # #gs.update(left=1-((figw-0.25)/figw), right=(figw-0.25)/figw, top=1-(0.25/figh), bottom=0)
-        # gs.update(left=0, right=1, top=1, bottom=0)
-
-        # ax = fig.add_subplot(gs[:,:])
-        
-        # sequence.seq_plot(relative_info_content(avg_pwm), ax=ax)
-        
-        # ax.set_xlim(left=0, right=w)
-        # ax.set_ylim(bottom=0, top=2.1)
-        
-        # ax.xaxis.set_visible(False)
-        # ax.yaxis.set_visible(False)
-        
-        # [ax.spines[loc].set_visible(False) for loc in ['top', 'bottom', 'left', 'right']]
-        
-        # plt.savefig(f'/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/05_clustered_filtered_clusters/clusters/logos/{cluster_id}.pdf')
-        # plt.savefig(f'/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/05_clustered_filtered_clusters/clusters/logos/{cluster_id}.png')
         
         header_line =  cluster_name + '\n'
         mat = pd.DataFrame(avg_pwm.T, index=['A:', 'C:', 'G:', 'T:']).to_string(header=False)

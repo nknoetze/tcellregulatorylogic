@@ -25,7 +25,6 @@ def read_meme_file(filepath):
 
 		nl=data.find('\n', rec_loc+1)
 
-		#motif=data[rec_loc+6:nl].strip()
 		motif=data[rec_loc+6:nl].strip().split(" ")[0]
 		#print motif
 

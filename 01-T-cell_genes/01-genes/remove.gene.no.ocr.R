@@ -44,7 +44,7 @@ exclude_genes <- pulled_ocrs %>%
 genes_no_ocrs <- gene_list %>% filter(!(gene_id %in% pulled_ocrs$query_gene)) %>% select(gene_name,gene_id)
 genes_to_exclude <- rbind(exclude_genes,genes_no_ocrs)
 
-filtered_genelist <- gene_list %>% filter(!(gene_id %in% genes_to_exclude$gene_id)) %>% arrange(t_o_rank) #%>% mutate(row=1:nrow(.),gene_group=ifelse(row<=40,'tcell_specific','non_specific')) 
+filtered_genelist <- gene_list %>% filter(!(gene_id %in% genes_to_exclude$gene_id)) %>% arrange(t_o_rank)
 
 outfile <- paste(outdir,sub('.tsv','',basename(gene_file)),'_filtered+',filtered_ocr_data_name,'+',bin_size,'+',merge_param,'.tsv',sep='')
 print(outfile)

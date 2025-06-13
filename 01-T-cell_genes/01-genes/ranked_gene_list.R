@@ -40,31 +40,3 @@ gene_df <- inner_join(tcell_df,nontcell_df) %>%
 
 
 fwrite(gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list.tsv',quote=FALSE,sep='\t')
-
-######################################################
-##                       LNCRNA                     ##
-######################################################
-median_expr_ncrna <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr_longncRNA.tsv') %>% select(-`Cd4 Stim`,-`Cd8 Stim`)
-ncrna_gencode <- fread('/projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv')  %>% 
-  filter(gene_type=='lincRNA' & transcript_type=='lincRNA' | gene_type=='antisense' & transcript_type=='antisense' | 
-           gene_type=='sense_intronic' & transcript_type=='sense_intronic' | 
-           gene_type=='sense_overlapping'& transcript_type=='sense_overlapping') %>% select(gene_id,gene_name) %>% unique()
-
-# select for t cell samples, calculate the sum of medians (across each cell type) for each ncRNA
-tcell_df_ncrna <- median_expr_ncrna %>% select(`Cd4 Naive`,`Cd8 Naive`,Th17,`Th1-17`,Th1,Tfh,Th2,`Treg Memory`,`Treg Naive`,gene_id) %>% 
-  mutate(tsum=rowSums(across(where(is.numeric))))
-
-# select the non-t cell samples, calculate the sum of medians (across each cell type) for each ncRNA
-nontcell_df_ncrna <- median_expr_ncrna %>% select(-`Cd4 Naive`,-`Cd8 Naive`,-Th17,-`Th1-17`,-Th1,-Tfh,-Th2,-`Treg Memory`,-`Treg Naive`,-gene_name)  %>% 
-  mutate(osum=rowSums(across(where(is.numeric)))) 
-
-tcell_median_ncrna <-median(tcell_df_ncrna$tsum)
-
-ncrna_gene_df <- inner_join(tcell_df_ncrna,nontcell_df_ncrna) %>%
-  filter(tsum > tcell_median_ncrna) %>% 
-  arrange(osum) %>% mutate(orank=1:nrow(.)) %>%
-  arrange(desc(tsum)) %>% mutate(trank=1:nrow(.)) %>% 
-  mutate(t_o_rank=trank+orank) %>% inner_join(ncrna_gencode) %>%
-  arrange(t_o_rank)
-
-fwrite(ncrna_gene_df,'/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_longncRNA_list.tsv',quote=FALSE,sep='\t')

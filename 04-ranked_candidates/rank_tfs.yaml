@@ -1,0 +1,23 @@
+# -------------------------------------------------------------------#
+# FILE PATH CONFIG
+# -------------------------------------------------------------------#
+CONDA_ENV: /projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/framework_env.yaml
+GENCODE: /projects/nknoetze_prj/references/annotations/gencode/gencode.v19.transc.type.1based.tsv
+GENE_EXPR_FILE: /projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv
+TARGET_GENES_FILE: /projects/sbrown_prj/220318_DI/data/interim/tcell_gene_lists/4sigma_target_genes_231006.txt
+EXPRESSED_TCELL_TFS: /projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_tcellexpressed.tsv
+# -------------------------------------------------------------------#
+# DIRECTORY CONFIG
+# -------------------------------------------------------------------#
+OUTDIR: /projects/holtlab_prj/23_miniP/data/framework_runs/OCR0043SB
+# -------------------------------------------------------------------#
+# PARAM VARIABLES
+# -------------------------------------------------------------------#
+#number of motifs analysed (1, 2, or 3)
+N_CORES: 56
+N_TF: 2
+MOTIF_TYPE: ["tfbs","novel","both"]
+FEATURE_FILE_NAME: results_231010
+OCR_TYPE: ["all","promoter","non-promoter"]
+MOTIF_COMPARISONS: ["allsites"]
+OVERLAP_TYPE: ["full"]

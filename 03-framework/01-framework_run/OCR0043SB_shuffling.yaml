@@ -9,7 +9,7 @@ TARGET_GENES: "/projects/sbrown_prj/220318_DI/data/interim/tcell_gene_lists/4sig
 NUM_ITER: 10000
 CORES: 32
 REGION_CATEGORIES: ['promoter','all','non-promoter']
-METRICS: ["fimo_geneCount", "fimo_siteCount"]
+METRICS: ["fimo_geneCount"]
 OUTDIR: "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_motifs_10k_coenrich/ocr_distribution"
 SCRATCH_OUTDIR: "/projects/nknoetze_prj/nknoetze_scratch/ocr_prj/results/tcell_ocr_metrics/ocr_distribution"
 MEME_FILE: "/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/JASPAR+novelPCallArchetypes.meme"

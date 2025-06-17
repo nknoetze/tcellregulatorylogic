@@ -10,17 +10,11 @@ ALL_GENES: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/ocrs/ranked_g
 NUM_ITER: 10000
 CORES: 64
 
-FUNCTIONS: "gcContent ocrs_number ocrs_distances rmsk_repName rmsk_repClass rmsk_repFamily blat_similarity fimo_geneCount"
+FUNCTIONS: "fimo_geneCount"
 
-RMSK_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/rmsk.txt"
-JASPAR_DATA: ""
 FIMO_DATA: "/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/JASPAR+novelPCallArchetypes.meme"
 EXPRESSED_TFS: "/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_expressed.tsv"
 
-
-KMER_DIR: ""
-KMER_FILE: ""
-KMER_LENS: []
 NUM_MOTIFS: [1]
 MAX_BACKGROUND_WRITTEN: 100
 

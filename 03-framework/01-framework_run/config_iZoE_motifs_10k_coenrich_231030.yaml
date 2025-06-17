@@ -12,15 +12,9 @@ CORES: 16
 
 FUNCTIONS: "fimo_comotif_geneCount"
 
-RMSK_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/rmsk.txt"
-JASPAR_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/JASPAR2022_hg19.bed"
 FIMO_DATA: "/projects/sbrown_prj/220318_DI/data/processed/novel_kmer/230710/JASPAR+novelPCallArchetypes.meme"
 EXPRESSED_TFS: "/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_expressed.tsv"
 
-
-KMER_DIR: "/projects/nknoetze_prj/ocr_prj/results/kmer_similarity/20230404/"
-KMER_FILE: "pulled_ocrs_by_gene_kmer{kmer_len}.tsv"
-KMER_LENS: [8,12,16]
 NUM_MOTIFS: [2]
 MAX_BACKGROUND_WRITTEN: 100
 

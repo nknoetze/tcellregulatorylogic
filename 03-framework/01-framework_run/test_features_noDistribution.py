@@ -137,24 +137,7 @@ MAXHOLDERCOUNT = 1
 
 # This stores the functions in a dictionary so that then functions can be called in a loop. This also makes the code more amenable to multithreading if we need.
 # Note that this must be in the form of a dictionary with key as the string and value as the ocrmetrics.function of the same name.
-FUNCTIONS_TO_RUN = {"gcContent": ocrmetrics.gcContent,
-                    "rmsk_repName": ocrmetrics.rmsk_repName,
-                    "rmsk_repClass": ocrmetrics.rmsk_repClass,
-                    "rmsk_repFamily": ocrmetrics.rmsk_repFamily,
-                    "ocrs_group_specific": ocrmetrics.ocrs_group_specific,
-                    "ocrs_single_gene_specific": ocrmetrics.ocrs_single_gene_specific,
-                    "ocrs_set_specific": ocrmetrics.ocrs_set_specific,
-                    "ocrs_number": ocrmetrics.ocrs_number,
-                    "ocrs_distances": ocrmetrics.ocrs_distances,
-                    "blat_similarity": ocrmetrics.blat_similarity,
-                    "jaspar": ocrmetrics.jaspar,
-                    "kmer": ocrmetrics.kmer,
-                    "kmer_geneCount": ocrmetrics.kmer_geneCount,
-                    "kmer_revcomp": ocrmetrics.kmer_revcomp,
-                    "kmer_revcomp_geneCount": ocrmetrics.kmer_revcomp_geneCount,
-                    "fimo": ocrmetrics.fimo,
-                    "fimo_shuffling": ocrmetrics.fimo_shuffling,
-                    "fimo_geneCount": ocrmetrics.fimo_geneCount,
+FUNCTIONS_TO_RUN = {"fimo_geneCount": ocrmetrics.fimo_geneCount,
                     "fimo_geneCount_shuffling": ocrmetrics.fimo_geneCount_shuffling,
                     "fimo_geneCount_scrambling": ocrmetrics.fimo_geneCount_scrambling,
                     "fimo_comotif_geneCount": ocrmetrics.fimo_comotif_geneCount,
@@ -162,9 +145,9 @@ FUNCTIONS_TO_RUN = {"gcContent": ocrmetrics.gcContent,
                     "fimo_comotif_geneCount_scrambling": ocrmetrics.fimo_comotif_geneCount_scrambling
                     }
 
-FEATURE_METRIC_FLIPPED_FUNCTIONS = ["kmer", "kmer_geneCount", "kmer_revcomp", "kmer_revcomp_geneCount", "fimo","fimo_shuffling", "fimo_geneCount","fimo_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount","fimo_comotif_geneCount_shuffling","fimo_comotif_geneCount_scrambling"]
-SHUFFLING_FUNCTIONS = ["fimo_shuffling","fimo_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount_shuffling","fimo_comotif_geneCount_scrambling"]
-NON_SHUFFLING_FUNCTIONS = ["kmer", "kmer_geneCount", "kmer_revcomp", "kmer_revcomp_geneCount", "fimo", "fimo_geneCount","fimo_comotif_geneCount"]
+FEATURE_METRIC_FLIPPED_FUNCTIONS = ["fimo_geneCount","fimo_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount","fimo_comotif_geneCount_shuffling","fimo_comotif_geneCount_scrambling"]
+SHUFFLING_FUNCTIONS = ["fimo_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount_shuffling","fimo_comotif_geneCount_scrambling"]
+NON_SHUFFLING_FUNCTIONS = ["fimo_geneCount","fimo_comotif_geneCount"]
 
 ## Main
 

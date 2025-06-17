@@ -41,12 +41,9 @@ MAX_BG_WRITTEN = config["MAX_BACKGROUND_WRITTEN"]
 
 FUNCTIONS = config["FUNCTIONS"]
 
-RMSK_DATA = config["RMSK_DATA"]
-JASPAR_DATA = config["JASPAR_DATA"]
 FIMO_DATA = config["FIMO_DATA"]
 EXPRESSED_TF_DATA = config["EXPRESSED_TFS"]
 
-KMER_LENS = config["KMER_LENS"]
 SCRAMBLE_METHOD = config["SCRAMBLE_METHOD"]
 
 OUTPUT = config["OUTPUT"]
@@ -57,24 +54,7 @@ CONDA = config["ENV"]
 ##  Define valid metrics for each datatype ##
 #############################################
 
-METRICS = {"gcContent": ["gc_frac"],
-           "rmsk_repName": ["count_frac", "overlap_frac", "gene_count"],
-           "rmsk_repClass": ["count_frac", "overlap_frac", "gene_count"],
-           "rmsk_repFamily": ["count_frac", "overlap_frac", "gene_count"],
-           "ocrs_number": ["count"],
-           "ocrs_group_specific": ["count"],
-           "ocrs_single_gene_specific": ["count"],
-           "ocrs_set_specific": ["count"],
-           "ocrs_distances": ["summed-distance", "summed-displacement", "average-distance", "average-displacement"],
-           "blat_similarity": ["average_comparison_identity", "average_overall_identity"],
-           "jaspar": ["count_frac", "overlap_frac", "gene_count"],
-           "kmer": ["{}mer".format(k) for k in KMER_LENS],
-           "kmer_geneCount": ["{}mer".format(k) for k in KMER_LENS],
-           "kmer_revcomp": ["{}mer".format(k) for k in KMER_LENS],
-           "kmer_revcomp_geneCount": ["{}mer".format(k) for k in KMER_LENS],
-           "fimo": ["fimo"],
-           "fimo_shuffling": ["fimo_shuffling"],
-           "fimo_geneCount": ["fimo_geneCount"],
+METRICS = {"fimo_geneCount": ["fimo_geneCount"],
            "fimo_geneCount_shuffling": ["fimo_geneCount_shuffling"],
            "fimo_geneCount_scrambling": ["fimo_geneCount_scrambling"],
            "fimo_comotif_geneCount": ["fimo_comotif_geneCount"],
@@ -89,16 +69,7 @@ NUM_MOTIFS=config['NUM_MOTIFS']
 
 list_files = [
     "{}.{}+{}+{}.RAW.tsv".format(OUTPUT, d, m, rt)
-    for d in [f for f in FUNCTIONS.split(" ") if f in ["rmsk_repName",
-                                                        "rmsk_repClass",
-                                                        "rmsk_repFamily",
-                                                        "jaspar",
-                                                        "kmer",
-                                                        "kmer_geneCount",
-                                                        "kmer_revcomp",
-                                                        "kmer_revcomp_geneCount",
-                                                        "fimo",
-                                                        "fimo_shuffling","fimo_geneCount",
+    for d in [f for f in FUNCTIONS.split(" ") if f in ["fimo_geneCount",
                                                         "fimo_geneCount_shuffling",
                                                         "fimo_geneCount_scrambling",
                                                         "fimo_comotif_geneCount",
@@ -121,113 +92,9 @@ rule all:
         all_res = list_files,
         filtered_res = list_files_to_filter
 
-#rule all: 
- #   input: os.path.join(OCRMETRICS_DATA_DIR, "fimo_motifs_expressed.txt")
-
-#########################
-##  00 Generate kmers  ##
-#########################
-
-rule regions_to_unique_regions:
-    '''Get unique regions into bed format'''
-    input:
-        regions = REGIONS
-    output:
-        bed = temp(os.path.join(OCRMETRICS_DATA_DIR, "uniqueregions.bed"))
-    shell:
-        "tail -n+2 {input.regions} | cut -f 1-4 | sort -k4,4 | uniq > {output.bed}"
-
-rule unique_regions_to_fasta:
-    '''Convert unique OCR regions to fasta file for kmer counting'''
-    input:
-        bed = rules.regions_to_unique_regions.output.bed
-    output:
-        fa = temp(os.path.join(OCRMETRICS_DATA_DIR, "uniqueregions.fa"))
-    conda: CONDA
-    params:
-        ref = "/projects/nknoetze_prj/references/igenomes/Homo_sapiens/gencode/GRCh37.p13.genome.fa"
-    shell:
-        "bedtools getfasta -fi {params.ref} -bed {input.bed} -fo {output.fa}"
-
-rule count_kmers:
-    '''Use jellyfish to count kmers in OCR file'''
-    input:
-        fa = rules.unique_regions_to_fasta.output.fa
-    output:
-        jf = temp(os.path.join(OCRMETRICS_DATA_DIR, "kmer_{k}.jf"))
-    params:
-        script = "/projects/nknoetze_prj/bin/jellyfish/jellyfish-2.3.0/bin/jellyfish"
-    threads: CORES
-    shell:
-        "{params.script} count -m {wildcards.k} -s 100M -C -t {threads} -o {output.jf} {input.fa}"
-
-rule dump_kmers:
-    '''Use jellyfish to dump kmers'''
-    input:
-        jf = rules.count_kmers.output.jf
-    output:
-        tsv = temp(os.path.join(OCRMETRICS_DATA_DIR, "kmer_{k}.tsv"))
-    params:
-        script = "/projects/nknoetze_prj/bin/jellyfish/jellyfish-2.3.0/bin/jellyfish"
-    shell:
-        "{params.script} dump --tab --output {output.tsv} {input.jf}"
-
-
-
-##################################################
-##  01 Filter feature data by specific regions  ##
-##################################################
-
-rule make_rmsk_bed:
-    '''Convert raw rmsk file to bed file.'''
-    input:
-        rmsk = RMSK_DATA
-    output:
-        rmskbed = os.path.join(OCRMETRICS_DATA_DIR, "rmsk.bed")
-    shell:
-        "cut -f6- {input.rmsk} > {output.rmskbed}"
-
-rule filter_rmsk:
-    '''Filter RepeatMasker data by our regions'''
-    input:
-        regions = REGIONS,
-        rmsk = rules.make_rmsk_bed.output.rmskbed
-    conda: CONDA
-    output:
-        rmsk_filtered = os.path.join(OCRMETRICS_DATA_DIR, "rmsk_filtered.txt")
-    shell:
-        "bedtools intersect -wa -a {input.rmsk} -b {input.regions} | sort | uniq > {output.rmsk_filtered}"
-
-    
-rule filter_jaspar:
-    '''Filter JASPAR data by our regions'''
-    input:
-        regions = REGIONS,
-        jaspar = JASPAR_DATA
-    conda: CONDA
-    output:
-        jaspar_filtered = os.path.join(OCRMETRICS_DATA_DIR, "jaspar_filtered.txt")
-    shell:
-        "bedtools intersect -wa -a {input.jaspar} -b {input.regions} | sort | uniq > {output.jaspar_filtered}"
-
-
 ########################
-##  02 Assemble Data  ##
+##  00 Assemble Data  ##
 ########################
-
-rule merge_kmer:
-    '''Merge kMer files'''
-    input:
-        kmers = expand(rules.dump_kmers.output.tsv, k=KMER_LENS)
-    output:
-        kmer_merged = temp(os.path.join(OCRMETRICS_DATA_DIR, "kmers.txt"))  ## making this temp ensures that it is always recreated if config file changes.
-    run:
-        out = open(output.kmer_merged, "w")
-        for f in input.kmers:
-            for line in open(f, "r"):
-                if not line.startswith(">"):
-                    out.write(line)
-        out.close()
 
 rule cp_expressed_tfs:
     '''copy expressed tf file'''
@@ -270,7 +137,6 @@ rule expressed_fimo_id:
     # modify the motif_id by replacing . with .\ to make it compatible with sed.
         """grep "MOTIF" {input.fimo} | cut -d " " -f 2-3 | tr [:lower:] [:upper:] | grep -f {input.expressed_tf} | cut -d " " -f 1 | sed 's/\./\\./g' > {output.expressed_fimo_ids}"""
 
-#if  FIMO_DATA=="/projects/nknoetze_prj/ocr_prj/data/raw/jaspar/JASPAR2022_CORE_vertebrates_non-redundant_pfms_meme.txt":
 rule filter_fimo:
     '''filter Fimo meme file for expressed tfs'''
     input:
@@ -283,7 +149,7 @@ rule filter_fimo:
         """head -n 9 {input.fimo} > {output}; parallel -a {input.expressed_fimo_ids} 'sed -n "/{{}}/,/^URL/ p" {input.fimo} && echo' >> {output.filtered_fimo}"""
 
 ########################
-##  03 Run Framework  ##
+##  01 Run Framework  ##
 ########################
 
 rule run_framework:
@@ -292,11 +158,6 @@ rule run_framework:
         target_genes = TARGET_GENES,
         background_genes = BACKGROUND_GENES,
         regions = REGIONS,
-        rmsk = rules.filter_rmsk.output.rmsk_filtered,
-        #jaspar = rules.filter_jaspar.output.jaspar_filtered,
-        #kmer = rules.merge_kmer.output.kmer_merged,
-        #fimo = rules.cp_fimo.output.fimo,
-        #fimo = rules.modify_fimo.output.fimo_modified
         fimo=rules.filter_fimo.output.filtered_fimo   ## EXPRESSION-FILTERED
     output:
         outfile = OUTPUT
@@ -339,7 +200,7 @@ rule run_framework:
 
 
 ################################
-##  04 Extract Feature Scores ##
+##  02 Extract Feature Scores ##
 ################################
 
 rule extract_feature_scores:
@@ -348,11 +209,7 @@ rule extract_feature_scores:
         resultfile = rules.run_framework.output.outfile,
         target_genes = TARGET_GENES,
         regions = REGIONS,
-        rmsk = rules.filter_rmsk.output.rmsk_filtered,
-        #jaspar = rules.filter_jaspar.output.jaspar_filtered,
-        #kmer = rules.merge_kmer.output.kmer_merged,
         fimo = rules.modify_fimo.output.fimo_modified,
-        #filtered_fimo=rules.filter_fimo.output.filtered_fimo
     output:
         outfile = "{}.{{datatype}}+{{metric}}+{{region_type}}.RAW.tsv".format(OUTPUT),
         feat_outfile = "{}.{{datatype}}+{{metric}}+{{region_type}}.RAW.featureLocations.tsv".format(OUTPUT)
@@ -384,12 +241,7 @@ rule extract_feature_scores_tf_filtered:
         resultfile = rules.run_framework.output.outfile,
         target_genes = TARGET_GENES,
         regions = REGIONS,
-        rmsk = rules.filter_rmsk.output.rmsk_filtered,
-        #jaspar = rules.filter_jaspar.output.jaspar_filtered,
-        #kmer = rules.merge_kmer.output.kmer_merged,
-        #fimo = rules.cp_fimo.output.fimo,
         fimo = rules.modify_fimo.output.fimo_modified,
-        #filtered_fimo=rules.filter_fimo.output.filtered_fimo,
         expressed_tf = rules.cp_expressed_tfs.output.expressed_tf
     output:
         outfile = "{}.{{datatype}}+{{metric}}+{{region_type}}.FILTERED.tsv".format(OUTPUT),

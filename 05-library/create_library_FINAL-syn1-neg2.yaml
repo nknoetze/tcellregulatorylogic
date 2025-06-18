@@ -1,0 +1,32 @@
+# -------------------------------------------------------------------#
+# FILE PATH CONFIG
+# -------------------------------------------------------------------#
+CONDA_ENV: /projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/framework_env.yaml
+# -------------------------------------------------------------------#
+# DIRECTORY CONFIG
+# -------------------------------------------------------------------#
+OUTDIR: /projects/sbrown_prj/220318_DI/data/processed/oligolibrary
+# -------------------------------------------------------------------#
+# PARAM VARIABLES
+# -------------------------------------------------------------------#
+N_TFBS: [9]
+N_NOVEL: [9]
+#number of motifs analysed (1, 2, or 3)
+RANKED_FEATURES: "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_motifs_10k_coenrich/results_231010.all.filtered.full.nonoverlapping.allsites.ranked.tsv"
+MOTIF_ARCHETYPES: "/projects/nknoetze_prj/ocr_prj/data/raw/motif_archetypes/metadata.tsv"
+N_CORES: 56
+NUM_CANDIDATES: 3
+CANDIDATE_GAP: 10
+NEUTRAL_SEQ: ["/projects/sbrown_prj/220318_DI/data/processed/wetlab/controls/synthetic_inert_1_TWISTORDER_insertonly.fasta"]
+OUTPUT_FILE_NAME: ["syn1", "neg811"]
+PAD_RE_5: "CTTCTATCTAGCACCGGT"
+RE_PAD_3: "GTCGACGATGTAGGTACT"
+ADAPTOR_5: "ACACTCTTTCCCTACACGACGCTCTTCCGATCT"
+ADAPTOR_3: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC"
+FORIBIDDEN_SEQS: "ACCGGT GTCGAC"
+
+
+CONTROL_SEQ: "/projects/nknoetze_prj/ocr_prj/data/processed/wetlab_controls/agarwal_ahituv_2023biorx/k562_control_seqs/fasta_files/seq1305+strong.fa"
+TILE_LENGTH: 88
+
+NUM_COMBOS: 16884

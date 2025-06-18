@@ -73,139 +73,22 @@ def data_init(source_data_dir, function_to_load):
     global feature_list
 
     ## get file paths
-    repeatmasker_file = os.path.join(source_data_dir, "rmsk_filtered.txt")
-    jaspar_file = os.path.join(source_data_dir, "jaspar_filtered.txt")
     fimo_file = os.path.join(source_data_dir, "fimo_motifs.txt")
 
     ## load data and populate features
 
     func = function_to_load
     ## data
-    if "rmsk" in func and "rmsk" not in data:
-        ## initial load of rmsk data
-        data["rmsk"] = [{"chr": x.split("\t")[0],
-            "start": x.split("\t")[1],
-            "end": x.split("\t")[2],
-            "repName": x.split("\t")[5],
-            "repClass": x.split("\t")[6],
-            "repFamily": x.split("\t")[7]} for x in open(repeatmasker_file)]
-
-    elif func == "jaspar":
-        data[func] = [{"chr": x.split("\t")[0],
-            "start": x.split("\t")[1],
-            "end": x.split("\t")[2],
-            "tfbs": x.rstrip().split("\t")[6]} for x in open(jaspar_file)]
-
-    elif "fimo" in func and "fimo" not in data:
+    if "fimo" in func and "fimo" not in data:
         data["fimo"] = fimo_file
 
 
     ## features and feature-specific data
-    if func == "rmsk_repName":
-        feature_list[func] = list(set([x["repName"] for x in data["rmsk"]]))
-        ## further process this data, getting regions for these specific features
-        data[func] = {feat: [] for feat in feature_list["rmsk_repName"]}
-        for element in data["rmsk"]:
-            data[func][element["repName"]].append("{}\t{}\t{}".format(element["chr"], element["start"], element["end"]))
-        ## convert these to BedTools objects.
-        for feat in data[func]:
-            data[func][feat] = pybedtools.BedTool("\n".join(data[func][feat]), from_string=True)
-
-    elif func == "rmsk_repClass":
-        feature_list[func] = list(set([x["repClass"] for x in data["rmsk"]]))
-        ## further process this data, getting regions for these specific features
-        data[func] = {feat: [] for feat in feature_list["rmsk_repClass"]}
-        for element in data["rmsk"]:
-            data[func][element["repClass"]].append("{}\t{}\t{}".format(element["chr"], element["start"], element["end"]))
-        ## convert these to BedTools objects.
-        for feat in data[func]:
-            data[func][feat] = pybedtools.BedTool("\n".join(data[func][feat]), from_string=True)
-
-    elif func == "rmsk_repFamily":
-        feature_list[func] = list(set([x["repFamily"] for x in data["rmsk"]]))
-        ## further process this data, getting regions for these specific features
-        data[func] = {feat: [] for feat in feature_list["rmsk_repFamily"]}
-        for element in data["rmsk"]:
-            data[func][element["repFamily"]].append("{}\t{}\t{}".format(element["chr"], element["start"], element["end"]))
-        ## convert these to BedTools objects.
-        for feat in data[func]:
-            data[func][feat] = pybedtools.BedTool("\n".join(data[func][feat]), from_string=True)
-
-    elif func == "jaspar":
-        feature_list[func] = list(set([x["tfbs"] for x in data["jaspar"]]))
-        ## further process this data, getting regions for these specific features
-        data["jaspar_tfbs"] = {feat: [] for feat in feature_list[func]}
-        for element in data["jaspar"]:
-            data["jaspar_tfbs"][element["tfbs"]].append("{}\t{}\t{}".format(element["chr"], element["start"], element["end"]))
-        ## convert these to BedTools objects.
-        for feat in data["jaspar_tfbs"]:
-            data["jaspar_tfbs"][feat] = pybedtools.BedTool("\n".join(data["jaspar_tfbs"][feat]), from_string=True)
-    
-    # elif func == "kmer":
-    #     feature_list[func] = list(set([x for x in data["kmer"]]))
-
-    else:
-        ## no special feature list, just set as single-length array with func name.
-        feature_list[func] = [func]
+    ## no special feature list, just set as single-length array with func name.
+    feature_list[func] = [func]
 
 
 ## FUNCTIONS TO GET THE POSITIONS OF FEATURES ON OUR OCRS
-
-def rmsk_repName(region_coords, feature, *args, **kwargs):
-    '''Find locations of regions that overlap a RMSK repName feature'''
-    ## return the overlapping regions of regions that have any overlapping bases with this featureset.
-    a = region_coords.intersect(data["rmsk_repName"][feature])
-    intersects = str(a).rstrip()
-    
-    os.remove(a.fn)
-
-    ## add feature name to these positions and strand(*)
-    intersects = "\n".join(["{}\t{}\t*".format(x, feature) for x in intersects.split("\n")])
-    
-    return intersects
-
-
-def rmsk_repClass(region_coords, feature, *args, **kwargs):
-    '''Find locations of regions that overlap a RMSK repClass feature'''
-    ## return the overlapping regions of regions that have any overlapping bases with this featureset.
-    a = region_coords.intersect(data["rmsk_repClass"][feature])
-    intersects = str(a).rstrip()
-    
-    os.remove(a.fn)
-
-    ## add feature name to these positionsand strand(*)
-    intersects = "\n".join(["{}\t{}\t*".format(x, feature) for x in intersects.split("\n")])
-    
-    return intersects
-
-def rmsk_repFamily(region_coords, feature, *args, **kwargs):
-    '''Find locations of regions that overlap a RMSK repFamily feature'''
-    ## return the overlapping regions of regions that have any overlapping bases with this featureset.
-    a = region_coords.intersect(data["rmsk_repFamily"][feature])
-    intersects = str(a).rstrip()
-    
-    os.remove(a.fn)
-
-    ## add feature name to these positions and strand(*)
-    intersects = "\n".join(["{}\t{}\t*".format(x, feature) for x in intersects.split("\n")])
-    
-    return intersects
-
-
-def jaspar(region_coords, feature, *args, **kwargs):
-    '''Find locations of regions that overlap a JASPAR TFBS'''
-    ## return the fraction of regions that have any overlapping bases with this featureset.
-    a = region_coords.intersect(data["jaspar_tfbs"][feature])
-    intersects = str(a).rstrip()
-    
-    os.remove(a.fn)
-
-    ## add feature name to these positions and strand(*)
-    intersects = "\n".join(["{}\t{}\t*".format(x, feature) for x in intersects.split("\n")])
-    
-    return intersects
-
-
 def fimo(region_sequences, features, *args, **kwargs):
     '''Run FIMO to find known motifs in sets of OCR sequences, and report their locations.'''
     #################################################################################
@@ -293,62 +176,14 @@ def fimo(region_sequences, features, *args, **kwargs):
 
     return fimo_results_significant.to_csv(index=False), fimo_results_all.to_csv(index=False)
 
-
-
-def kmer(region_sequences, features, *args, **kwargs):
-    '''Find locations of regions that match a given kmer'''
-    kmer_lengths = set([len(k) for k in features])
-    kmer_res = ""
-    for fasta_seq in region_sequences.split("\n"):
-        if fasta_seq.startswith(">"):
-            ## get ocr_id
-            ocr_id = fasta_seq[1:]
-            chrom = ocr_id.split(":")[0]
-            start = int(ocr_id.split(":")[1].split("-")[0])
-            end = int(ocr_id.split(":")[1].split("-")[1])
-        else:
-            fasta_seq = fasta_seq.upper()
-            for kl in kmer_lengths:
-                for i in range(len(fasta_seq)-kl):
-                    if fasta_seq[i:(i+kl)] in features:
-                        # add strand to result file (*)
-                        kmer_res += "{}\t{}\t{}\t{}\t{}\t*\n".format(chrom, start+i, start+i+kl, ocr_id, fasta_seq[i:(i+kl)])
-
-    return kmer_res.rstrip()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Main
 
-FUNCTIONS_TO_RUN = {"rmsk_repName": rmsk_repName,
-                    "rmsk_repClass": rmsk_repClass,
-                    "rmsk_repFamily": rmsk_repFamily,
-                    "jaspar": jaspar,
-                    "kmer": kmer,
-                    "kmer_geneCount": kmer,
-                    "kmer_revcomp": kmer,
-                    "kmer_revcomp_geneCount": kmer,
-                    "fimo": fimo,
-                    "fimo_geneCount": fimo,
+FUNCTIONS_TO_RUN = {"fimo_geneCount": fimo,
                     "fimo_comotif_geneCount" : fimo,
-                    "fimo_geneCount_shuffling": fimo,
-                    "fimo_comotif_geneCount_shuffling" : fimo,
-                    "fimo_geneCount_scrambling": fimo,
-                    "fimo_comotif_geneCount_scrambling" : fimo
+                    "fimo_geneCount_shuffling": fimo
                     }
 
-FEATURE_METRIC_FLIPPED_FUNCTIONS = ["fimo", "fimo_comotif_geneCount","fimo_geneCount", "kmer", "kmer_geneCount", "kmer_revcomp", "kmer_revcomp_geneCount","fimo_geneCount_shuffling","fimo_comotif_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount_scrambling"]
+FEATURE_METRIC_FLIPPED_FUNCTIONS = ["fimo", "fimo_comotif_geneCount","fimo_geneCount","fimo_geneCount_shuffling"]
 
 if __name__ == "__main__":
 
@@ -505,7 +340,6 @@ if __name__ == "__main__":
             fc = (float(linedict["target_value"])+0.000001) / (float(linedict["background_mean"])+0.000001)
             pval = float(linedict["p_val"])
 
-            #if feature == "MIRb" and region_set == args.REGION_SET and metric == args.METRIC and datatype == args.DATATYPE: print("\n".join([datatype, feature, metric, region_set, str(fc), str(pval)]))
             if datatype == args.DATATYPE and metric == args.METRIC and region_set == args.REGION_SET and pval < args.P_THRESH and fc > args.FC_THRESH:
                 ## this is a relevant result.
                 if not args.EXP_FEAT:
@@ -557,26 +391,6 @@ if __name__ == "__main__":
                 feat_res, feat_res_all = FUNCTIONS_TO_RUN[args.DATATYPE](region_coords = bed_regions,
                                                 region_sequences = region_seqs,
                                                 features = sig_features)
-                #if "fimo" in args.DATATYPE:
-                #### I THINK CAN BE REMOVED? ALL OF THESE OPERATIONS COULD BE DONE IN THE SECTION BELOW, ESPECIALLY SINCE IT NEEDS A NEW
-                ## RETURNS ALL RESULTS, NOT JUST SIGNIFICANT
-                ## what is returned is chr, start, stop, ocr_id,motif_alt_id, STRAND and *matched_sequence*,motif_id for all sig features.
-                # feat_res = "\n".join([
-                #     "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                #         x.split(",")[0].split(":")[0], #chromosome
-                
-                #         #some functions return intersected bed files, so parse positions from from ocr id positions, and the
-                #         #start and end columns returned from the intersection 
-                #         int(x.split(",")[1]) + int(x.split(",")[0].split(":")[1].split("-")[0]) - 1,#start and end
-                #         int(x.split(",")[2]) + int(x.split(",")[0].split(":")[1].split("-")[0]) - 1,
-                #         x.split(",")[0], #ocr id
-                #         x.split(",")[4],#motif_alt_id
-                #         x.split(",")[7],#strand
-                #         x.split(",")[8],#matched sequence
-                #         x.split(",")[3]#motif id
-                #     ) for x in feat_res_all.rstrip().split("\n") if not x.startswith("sequence_name")
-                # ])
-            #DO WE EVEN NEED THE FILTERED RESULTS????
                 feat_res=feat_res_all
             else:
                 feat_res = FUNCTIONS_TO_RUN[args.DATATYPE](region_coords = bed_regions,

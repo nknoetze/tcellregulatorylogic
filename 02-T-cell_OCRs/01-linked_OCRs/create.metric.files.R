@@ -22,17 +22,10 @@ outdir <- args$outdir
 ###        READ IN FILES          ###
 ### ----------------------------- ###
 print("Reading in the Data")
-if(grepl('longncRNA',gene_file)==TRUE){
-  gene_list <- fread(gene_file) %>%
-    select(gene_id,gene_name)
-    types <- c('lincRNA','antisense', 'sense_intronic', 'sense_overlapping')
-  
-} else{
-  gene_list <- fread(gene_file) %>%
-    select(gene_id, gene_group,gene_name) #%>%
-  #mutate(gene_group=ifelse(gene_group=="non_specific","Non-Specific T-cell Gene", "T-cell Specific Gene"))
-  types <- c('protein_coding','TR_C_gene','IG_C_gene')
-}
+
+gene_list <- fread(gene_file) %>%
+select(gene_id, gene_group,gene_name)
+types <- c('protein_coding','TR_C_gene','IG_C_gene')
 
 gencode <- fread(gencode_file) %>% 
   filter(type=='transcript',gene_type %in% types, transcript_type %in% types) %>% 
@@ -40,8 +33,7 @@ gencode <- fread(gencode_file) %>%
 
 #Get the gene name and id's for later :) 
 gencode_genes <- gencode %>% select(gene_name,gene_id) %>% unique() %>% left_join(gene_list) %>%
-  #mutate(gene_group=ifelse(is.na(gene_group),'Other',gene_group)) %>% 
-  distinct(gene_id,gene_name)#,gene_group) 
+  distinct(gene_id,gene_name)
 
 #Get the TSS for each promoter based on the strand
 #REMOVE TRANSCRIPT ID. For a single gene, different transcripts can have the same TSS

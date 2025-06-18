@@ -11,25 +11,14 @@ parser <- ArgumentParser()
 parser$add_argument("-gc", "--gencode", help="Path to the parse gencode v19 file")
 parser$add_argument("-ocr", "--file_to_annotate", help="Path to the OCR or CHIP seq peak file to annotate")
 parser$add_argument("-o", "--outdir", help="Path to the output directory")
-parser$add_argument("-fn", "--file_name", help="output file name")
-parser$add_argument("-gt", "--gene_type", help="specify if this run is for lincRNA or protein coding")
 
 args <- parser$parse_args()
 gencode <- args$gencode
 file_to_annotate <- args$file_to_annotate
 outdir <- args$outdir
-file_name <-  args$file_name
-GENE_TYPE <- args$gene_type
 
-#read in gencode file. Exclude ChrY and MT genomes
-# only use tss for transcripts that are protein coding
-if(GENE_TYPE=="longncRNA"){
-  types <- c('lincRNA','antisense', 'sense_intronic', 'sense_overlapping')
-}else if(GENE_TYPE=='protein_coding'){
-  types <- c('protein_coding','TR_C_gene','IG_C_gene')
-}
-outdir <- paste(outdir,'/',GENE_TYPE,sep='')
-print(outdir)
+types <- c('protein_coding','TR_C_gene','IG_C_gene')
+
 if(!(dir.exists(outdir))){
   dir.create(outdir)
 }

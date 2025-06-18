@@ -11,25 +11,17 @@ parser$add_argument("-interaction_file", "--interaction_file", help="Path to the
 parser$add_argument("-is_merged", "--is_merged", help="specify if the interactions are merged interactions (merged)",default='no')
 parser$add_argument("-gencode", "--gencode", help="Path to the gencode file to annotate")
 parser$add_argument("-o", "--outdir", help="Path to the output directory")
-parser$add_argument("-c", "--prefix", help="indicate prefix/subfolder to use for output results",default='')
-parser$add_argument("-gt", "--gene_type", help="specify if this run is for lincRNA or protein coding")
 
 args <- parser$parse_args()
 gencode <- args$gencode
 interaction_file <- args$interaction_file
 is_merged <- args$is_merged
-prefix <- args$prefix
 outdir <- args$outdir
-GENE_TYPE <- args$gene_type
 
 
 #read in gencode file. Exclude ChrY and MT genomes
 #only include transcription start sites for transcripts that are protein coding and tr\ig.
-if(GENE_TYPE=='longncRNA'){
-  types <- c('lincRNA','antisense', 'sense_intronic', 'sense_overlapping')
-}else if(GENE_TYPE=='protein_coding'){
-  types <- c('protein_coding','TR_C_gene','IG_C_gene')
-}
+types <- c('protein_coding','TR_C_gene','IG_C_gene')
 
 #read in gencode file. Exclude ChrY and MT genomes
 #only include transcription start sites for transcripts that are protein coding and tr\ig, or the ncRNA class
@@ -66,15 +58,11 @@ tss_ranges <- gencode_v19 %>%
   makeGRangesFromDataFrame(.,start.field = c('tss_start'),end.field = c('tss_end'), seqnames.field = c('chrom'),ignore.strand = TRUE,keep.extra.columns = TRUE)
 
 ####
-map_genes <- function(interaction_bin_df, bin_granges, tss_granges,overlap_type){
+map_genes <- function(interaction_bin_df, bin_granges, tss_granges){
   #query-tss
   #subject-interactions
   #use within: ask: are there any TSS within the Interactions?
-  if(overlap_type=='within'){
-    tss_bin_overlap <- findOverlaps(query = tss_granges,subject = bin_granges,type='within') 
-  }else{
-    tss_bin_overlap <- findOverlaps(query = tss_granges,subject = bin_granges,minoverlap = 1,type='any',select = 'all') 
-  }
+  tss_bin_overlap <- findOverlaps(query = tss_granges,subject = bin_granges,type='within') 
   
   # get the gene ids for each interaction
   # append it to the df containing the overlaps
@@ -88,8 +76,8 @@ map_genes <- function(interaction_bin_df, bin_granges, tss_granges,overlap_type)
   bin_annotations <- bin_genes %>% select(-gene_name,-gene_id) %>% unique() %>% merge(bin_gene_overlaps)
 }
 
-bin1_annotations <- map_genes(bin1,bin1_ranges,tss_ranges,'within') %>% transmute('chrom1'=chr,'s1'=start,'e1'=end,'bin1_gene_id'=gene_id,'bin1_id'=bin_id)
-bin2_annotations <- map_genes(bin2,bin2_ranges,tss_ranges,'within') %>% transmute('chrom2'=chr,'s2'=start,'e2'=end,'bin2_gene_id'=gene_id,'bin2_id'=bin_id)
+bin1_annotations <- map_genes(bin1,bin1_ranges,tss_ranges) %>% transmute('chrom1'=chr,'s1'=start,'e1'=end,'bin1_gene_id'=gene_id,'bin1_id'=bin_id)
+bin2_annotations <- map_genes(bin2,bin2_ranges,tss_ranges) %>% transmute('chrom2'=chr,'s2'=start,'e2'=end,'bin2_gene_id'=gene_id,'bin2_id'=bin_id)
 
 #get rid of extra columns. 
 #merge the new annotations
@@ -100,7 +88,7 @@ if(is_merged=='merged'){
     merge(bin2_annotations,by=c('bin2_id','chrom2','s2','e2')) %>%
     select(interaction_id,bin1_id,chrom1,s1,e1,bin1_gene_id, bin2_id,chrom2,s2,e2,bin2_gene_id,StrongConn_Monocyte,StrongConn_NaiveK,StrongConn_NaiveB,StrongConn_CD4Naive,StrongConn_CD8Naive) %>%
     unique()
-  
+  outfile <- paste(outdir,'merged_interactions_tss_within.tsv',sep='')
 } else{
   interactions_tss_within <- interactions %>% select(bin1_id,bin2_id,chrom1,s1,chrom2,
                                                      s2,e2,interaction_id,qval_Monocyte,qval_NaiveK,qval_NaiveB,qval_CD4Naive,qval_CD8Naive) %>% 
@@ -108,6 +96,8 @@ if(is_merged=='merged'){
     merge(bin2_annotations,by=c('bin2_id','chrom2','s2','e2')) %>%
     select(interaction_id,bin1_id,chrom1,s1,e1,bin1_gene_id, bin2_id,chrom2,s2,e2,bin2_gene_id,qval_Monocyte,qval_NaiveK,qval_NaiveB,qval_CD4Naive,qval_CD8Naive) %>%
     unique()
+  outfile <- paste(outdir,'interactions_tss_within.tsv',sep='')
+
 }
 
 fwrite(interactions_tss_within,paste(outdir,'interactions_tss_within.tsv',sep=''),sep='\t',quote=FALSE)

@@ -32,18 +32,11 @@ filtered_sam=(sam_file.with_columns([
             pl.col("qname").str.slice(-10).alias("UMI"),
             pl.col("qname").str.head(-11).alias("read")])
             .select(["candidate", "read", "UMI"]).unique())
-            #pl.col("tlen").abs(),#.alias("stop"),
-            #pl.lit("*").alias("strand"),
-            #pl.lit("1").alias("start")])
-            #.select(["candidate", "read", "UMI"]).unique())
-            #.select(["candidate", "read", "start","tlen", "UMI", "strand"]).unique())
 print('getting UMI counts')
 umi_bedfile = (
     filtered_sam
     .group_by(["candidate", "UMI"])  # Group by UMI and candidate
-    .len() # n_unique()????
-    #.join(filtered_sam, on=["UMI", "candidate"]), how="inner")  # Merge with original DataFrame to retain original columns
-    #.select(["candidate", "start", "tlen", "UMI", "len", "strand"])
+    .len() 
     .unique()) 
 
 #filtered_sam.write_csv("/projects/nknoetze_prj/ocr_prj/parsed_file.tsv",include_header=True,separator="\t")

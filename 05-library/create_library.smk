@@ -32,8 +32,6 @@ neutral_seqs = {name: f for name, f in zip(output_file_name, neutral_seq)}
 
 rule all:
     input:
-        #expand(f"{outdir}/wetlab/{output_file_name}.oligolibrary.fa",outdir=outdir,output_file_name=output_file_name)
-        #[expand(f"{outdir}/wetlab/{output_file_name}.{{nnovel}}novel_{{ntfbs}}tfbs.oligolibrary.fa",outdir=outdir,output_file_name=output_file_name) for nnovel, ntfbs in zip(n_novel, n_tfbs)]
         expand([f"{{outdir}}/wetlab/bg-{{output_file_name}}.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa" for nnovel, ntfbs in zip(n_novel, n_tfbs)], outdir = outdir, output_file_name = output_file_name),
         expand(f"{outdir}/wetlab/tiledPosControl.seqs.fa",outdir=outdir),
         expand([f"{{outdir}}/wetlab/thirdSubset_randomGapSeq.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa" for nnovel, ntfbs in zip(n_novel, n_tfbs)], outdir = outdir),
@@ -49,15 +47,12 @@ rule select_candidates:
     params:
         script="../data/candidate.selection.R",
         archetypes=archetypes,
-        #n_tfbs=n_novel,
-        #n_novel=n_tfbs,
         outdir="{outdir}/wetlab"
     threads: 56
     output:
         table="{outdir}/wetlab/candidates.{nnovel}novel_{ntfbs}tfbs.tsv",
         fasta="{outdir}/wetlab/candidate_seqs.{nnovel}novel_{ntfbs}tfbs.fa"
     shell:
-        #"Rscript {params.script} --ranked_features {input.ranked_features} --motif_archetypes {params.archetypes} --n_novel {params.n_novel} --n_tfbs {params.n_tfbs} --outdir {params.outdir}"
         "Rscript {params.script} --ranked_features {input.ranked_features} --motif_archetypes {params.archetypes} --n_novel {wildcards.nnovel} --n_tfbs {wildcards.ntfbs} --outdir {params.outdir}"
 
 # --------------------------------------------------------------
@@ -69,7 +64,6 @@ rule generate_library:
     conda: conda_env
     params:
         script="../oligodesigns/oligo_designer.py",
-        #neutral_seq=neutral_seq,
         neutral_seq = lambda wildcards: neutral_seqs[wildcards.output_file_name],
         pad_re_5=pad_re_5,
         re_pad_3=re_pad_3,
@@ -103,39 +97,13 @@ rule generate_tiled_control:
     shell:
         "python {params.script} --control_seq {input.control_seq} --pad_re_5 {params.pad_re_5} --re_pad_3 {params.re_pad_3} --adaptor_5 {params.adaptor_5} --adaptor_3 {params.adaptor_3} --forbidden_seqs {params.forbidden_seqs} --tile_length {params.tile_length} --output {output.tiled_sequences}"
 
-
-# --------------------------------------------------------------
-# CREATE Random gap SEQUENCE CONTROL
-# --------------------------------------------------------------
-rule generate_randomgap_library:
-    input:
-        fasta="{outdir}/wetlab/candidate_seqs.{nnovel}novel_{ntfbs}tfbs.fa"
-    conda: conda_env
-    params:
-        script="../oligodesigns/oligo_designer_randomizedGapSeq.py",
-        pad_re_5=pad_re_5,
-        re_pad_3=re_pad_3,
-        adaptor_5=adaptor_5,
-        adaptor_3=adaptor_3,
-        forbidden_seqs=forbidden_seqs,
-        num_candidates=num_candidates,
-        candidate_gap=candidate_gap,
-        num_combos=num_combos,
-        gc_content = 40.9
-    output:
-        ranndomgap_lib = "{outdir}/wetlab/thirdSubset_randomGapSeq.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa"
-    shell:
-        "python {params.script} --candidates {input.fasta} --num_combos {params.num_combos} --pad_re_5 {params.pad_re_5} --re_pad_3 {params.re_pad_3} --adaptor_5 {params.adaptor_5} --adaptor_3 {params.adaptor_3} --num_candidates {params.num_candidates} --candidate_gap {params.candidate_gap} --forbidden_seqs {params.forbidden_seqs} --gc_content {params.gc_content} --spacer --output {output.ranndomgap_lib}"
-
-
 # --------------------------------------------------------------
 # Concatenate all files into one file for synthesis
 # --------------------------------------------------------------
 rule make_synthesis_file:
     input:
         libs = expand([f"{{outdir}}/wetlab/bg-{{output_file_name}}.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa" for nnovel, ntfbs in zip(n_novel, n_tfbs)], outdir = outdir, output_file_name = output_file_name),
-        positive = expand(f"{outdir}/wetlab/tiledPosControl.seqs.fa",outdir=outdir),
-        rand_bg = expand([f"{{outdir}}/wetlab/thirdSubset_randomGapSeq.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa" for nnovel, ntfbs in zip(n_novel, n_tfbs)], outdir = outdir)
+        positive = expand(f"{outdir}/wetlab/tiledPosControl.seqs.fa",outdir=outdir)
     output:
         synthesize_file = "{outdir}/wetlab/complete.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa"
     shell:

@@ -21,14 +21,12 @@ library_names=config['LIBRARY_NAMES']
 MM_thresholds=config['MM_THRESHOLDS']
 umi_MMs=config['UMI_MM']
 seed=config['SEED']
-method=config['METHOD']
 # --------------------------------------------------------------
 # SET RULE ALL
 # --------------------------------------------------------------
 rule all:
     input:
-        #expand(f"{scratch_outdir}""/03-candidate_counts/subsampled{seed}_{method}_DNA{library_name}.mismatch0.counts.0.tsv",outdir=outdir,library_name=library_names,seed=seed,method=method)
-        expand(f"{outdir}""/03-candidate_counts/{method}_DNA{library_name}.counts.tsv",library_name=library_names,method=method)
+        expand(f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch{MM_threshold}.counts.{umi_MM}.tsv",library_name=library_names,method=method,MM_threshold=MM_thresholds)
     
 # --------------------------------------------------------------
 # EXTRACT UMI
@@ -87,7 +85,6 @@ rule map_reads:
     output:
         f"{outdir}/""02-mapped_reads/DNA{library_name}.bam"
     shell:
-        #"(bowtie2 -p {threads} -x {params.oligo_library_index} -1 {input.R1} -2 {input.R2} | samtools view -@ {threads} -Sb |samtools sort -@ {threads} -o {output} - ) 2> {log}"
         "(bowtie2 -p {threads} -x {params.oligo_library_index} -1 {input.R1} -2 {input.R2} | samtools view -@ {threads} -F 780 -f 2 -Sb > {output}) 2> {log}"
 
 #--------------------------------------------------------------
@@ -178,34 +175,3 @@ rule get_counts:
         f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch{MM_threshold}.counts.{umi_MM}.tsv"
     shell:
         "python {params.script} --UMI_bedfile {input} --mm_threshold {params.umi_MM} --outfile {output}"
-
-#--------------------------------------------------------------
-# SUBSAMPLE COUNTS
-#--------------------------------------------------------------
-# rule subsample_counts:
-#     input:
-#         umi_counts_file=f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch0.counts.0.tsv",
-#         wait=expand(f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch0.counts.0.tsv",library_name=library_names)
-#     params: 
-#         script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/subsample_library.R",
-#         umi_counts_dir=f"{outdir}""/03-candidate_counts/",
-#         seed="{seed}",
-#         outdir=f"{scratch_outdir}""/03-candidate_counts/",
-#         method="{method}"
-#     output:
-#         f"{scratch_outdir}""/03-candidate_counts/subsampled{seed}_{method}_DNA{library_name}.mismatch0.counts.0.tsv"
-#     shell:
-#         "Rscript {params.script} --umi_counts_dir {params.umi_counts_dir} --umi_counts_file {input.umi_counts_file} --seed_value {params.seed} --outdir {params.outdir} --method {params.method}"
-
-#--------------------------------------------------------------
-# Average subsampled COUNTS
-#--------------------------------------------------------------
-# rule average_counts:
-#     input:
-#         sumsampled_counts=expand(f"{scratch_outdir}""/03-candidate_counts/subsampled{seed}_{method}_DNA{{library_name}}.mismatch0.counts.0.tsv",seed=seed,method=method),
-#         wait=expand(f"{scratch_outdir}""/03-candidate_counts/subsampled{seed}_{method}_DNA{library_name}.mismatch0.counts.0.tsv",library_name=library_names,seed=seed,method=method)
-#     conda: datamash_env
-#     output:
-#         f"{outdir}""/03-candidate_counts/{method}_DNA{library_name}.counts.tsv"
-#     shell:
-#         """cat {input.sumsampled_counts} | grep -v "candidate" | datamash -sg 1 sum 2 | awk 'OFS=FS="\t" {{print $1,$2/10}}' > {output}"""

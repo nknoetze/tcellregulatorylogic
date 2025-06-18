@@ -14,52 +14,12 @@ parse_file <- function(RNA_file_path,DNA_file_path,regex){
                            ~fread(.x,sep='\t',col.names=c('candidate','count')), .id = 'sample_id',nThread=48)
   
   df <- full_join(raw_DNA_count,raw_RNA_count) %>%
-    mutate(candidate=gsub('neg_81_1-neg','neg81',candidate),
-           candidate=gsub('synthetic_inert_1','synthetic',candidate),
+    mutate(candidate=gsub('synthetic_inert_1','synthetic',candidate),
            candidate=gsub('seq1305\\(\\+\\);strong','strong',candidate),
            candidate=gsub("ATF2\\|FOSB::JUN\\|FOSL1::JUND\\|JUN::JUNB\\|ATF3","FOSB::JUN",candidate),
            candidate=gsub("FOSL1::JUNB\\|FOS::JUNB\\|FOS::JUND\\|BATF\\|BATF::JUN\\|FOSL1::JUND\\|JUN::JUNB", "BATF::JUN",candidate))
   return(df)
 }
-# quantile_normalise <- function(df,c){
-#   quantile_list <- list()
-#   for(b in c("strong","random","strong|random")){
-#     if(b=="strong|random"){
-#       matrix <- df %>% filter(cell==c) %>% 
-#         separate(candidate,into=c('candidate','background'),sep='\\.') %>% 
-#         filter(!grepl(b,background)) %>% 
-#         distinct(candidate,background,RNA1_log2fc,RNA2_log2fc,RNA3_log2fc) %>% 
-#         pivot_longer(cols=c(-candidate,-background),names_to='sample_id',values_to='log2fc') %>% 
-#         pivot_wider(names_from=c(background,sample_id),names_sep="@",values_from=log2fc) %>% 
-#         column_to_rownames(var='candidate') %>% as.matrix()
-#     } 
-#     else{
-#       matrix <- df %>% filter(cell==c) %>% 
-#         separate(candidate,into=c('candidate','background'),sep='\\.') %>% 
-#         filter(grepl(b,background)) %>% 
-#         distinct(candidate,background,RNA1_log2fc,RNA2_log2fc,RNA3_log2fc) %>% 
-#         pivot_longer(cols=c(-candidate,-background),names_to='sample_id',values_to='log2fc') %>% 
-#         pivot_wider(names_from=c(background,sample_id),names_sep="@",values_from=log2fc) %>% 
-#         column_to_rownames(var='candidate') %>% as.matrix()
-#     }
-#     quantile <- normalize.quantiles(matrix)
-#     colnames(quantile) <- colnames(matrix)
-#     rownames(quantile) <- rownames(matrix)
-#     quantile_df <- quantile %>% as.data.frame() %>% rownames_to_column(var='candidate') %>% 
-#       pivot_longer(cols=c(-candidate),values_to='qn_log2fc',names_to='sample') %>% 
-#       separate(sample,into=c('background','sample_id'),sep="@") %>% 
-#       mutate(candidate=paste(candidate,background,sep='.'),sample_id=gsub("log2fc","qn_log2fc",sample_id)) %>% select(-background) %>%
-#       pivot_wider(names_from=sample_id,values_from=qn_log2fc) %>% 
-#       group_by(candidate) %>% 
-#       mutate(RNA123_qn_log2fc_mean=mean(c(RNA1_qn_log2fc,RNA2_qn_log2fc,RNA3_qn_log2fc),na.rm = TRUE),
-#              RNA123_qn_log2fc_median=median(c(RNA1_qn_log2fc,RNA2_qn_log2fc,RNA3_qn_log2fc),na.rm = TRUE),
-#              RNA123_qn_log2fc_sd=sd(c(RNA1_qn_log2fc,RNA2_qn_log2fc,RNA3_qn_log2fc),na.rm = TRUE),
-#              RNA123_qn_log2fc_cv=(RNA123_qn_log2fc_sd/RNA123_qn_log2fc_mean)) %>% ungroup() %>%
-#       mutate(cell=c)
-#     quantile_list[[paste(c,b,sep="-")]] <- quantile_df
-#   }
-#   return(quantile_list)
-# }
 
 ###### RAW COUNTS
 raw_counts_df <- parse_file(RNA_file_path="/projects/holtlab_prj/scratch/23_miniP/data/processed/STARRseq/RNA/02-candidate_counts",
@@ -162,12 +122,7 @@ log2fc_w_background <- log2fc %>% filter(!grepl('spacer-spacer-spacer',candidate
   select(-RNA1_background,-RNA2_background,-RNA3_background) %>%
   full_join(log2fc %>% filter(grepl('spacer-spacer-spacer',candidate)))
 
-# QN LOG2FC
-#jurkat_norm <- quantile_normalise(log2fc,"Jurkat") %>% rbindlist()
-#K562_norm <- quantile_normalise(log2fc,"K562") %>% rbindlist()
-#quantile_normalised <- rbind(jurkat_norm,K562_norm)
-
-full_df <- full_join(raw_count,dedup) %>% full_join(cpm_library_sizes) %>% full_join(log2fc_w_background) %>% #full_join(quantile_normalised) %>% 
+full_df <- full_join(raw_count,dedup) %>% full_join(cpm_library_sizes) %>% full_join(log2fc_w_background) %>% 
   separate(candidate,into=c('oligo','background'),sep='\\.') %>%
   separate(oligo,into=c('m1','m2','m3'),sep='-',remove=FALSE) %>% 
   mutate(m1_orientation=ifelse(grepl("revc",m1),"rev","fwd"),
@@ -192,15 +147,6 @@ final %>% filter(oligo %in% monotypic$oligo| oligo=="spacer-spacer-spacer",backg
  rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
  fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.monotypic.reduced.tsv',sep='\t',quote=FALSE)
 
-# monotypic_random <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background=="random") %>%
-#   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
-#   filter(n_distinct(value)==1) %>% ungroup()
-# final %>% filter(oligo %in% monotypic_random$oligo| oligo=="spacer-spacer-spacer",background=='random') %>%
-#  rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
-#  fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.monotypic.random.tsv',sep='\t',quote=FALSE)
-
-
-
 ditypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
   filter(n_distinct(value)==2) %>% ungroup()
@@ -208,24 +154,9 @@ final %>% filter(oligo %in% ditypic$oligo| oligo=="spacer-spacer-spacer",backgro
  rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
  fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.reduced.tsv',sep='\t',quote=FALSE)
 
-# ditypic_random <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background=="random") %>%
-#   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
-#   filter(n_distinct(value)==2) %>% ungroup()
-# final %>% filter(oligo %in% ditypic_random$oligo| oligo=="spacer-spacer-spacer",background=='random') %>%
-#  rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
-#  fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.random.tsv',sep='\t',quote=FALSE)
-
-
-tritypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
-  pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
-  filter(n_distinct(value)==3) %>% ungroup()
-final %>% filter(oligo %in% tritypic$oligo| oligo=="spacer-spacer-spacer",background!="strong") %>%
- rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
-fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.tritypic.reduced.tsv',sep='\t',quote=FALSE)
-
-# tritypic_random <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background=="random") %>%
+# tritypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
 #   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
 #   filter(n_distinct(value)==3) %>% ungroup()
-# final %>% filter(oligo %in% tritypic_random$oligo| oligo=="spacer-spacer-spacer",background=='random') %>%
+# final %>% filter(oligo %in% tritypic$oligo| oligo=="spacer-spacer-spacer",background!="strong") %>%
 #  rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
-# fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.tritypic.random.tsv',sep='\t',quote=FALSE)
+# fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.tritypic.reduced.tsv',sep='\t',quote=FALSE)

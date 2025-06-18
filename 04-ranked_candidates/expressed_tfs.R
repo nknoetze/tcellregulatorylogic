@@ -36,7 +36,6 @@ feature_results <- fread(feature_file) %>%
 #feature_results <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/OCR0040SB/results_230925.tsv',nThread=48) %>%
   mutate(fc=((target_value+0.000001)/(background_mean+0.000001)),
          feature=str_to_upper(feature)) %>%
-  #filter(region_set==ocr_type,datatype=='fimo_comotif_geneCount',p_val < 0.05,!(grepl("\\.",feature)),fc >2)
   filter(region_set==ocr_type,grepl(!!metric,datatype),p_val < 0.05,!(grepl("\\.",feature)),fc >2)
 
 

@@ -20,4 +20,3 @@ SCRATCH_OUTPUT_DIR: "/projects/holtlab_prj/scratch/23_miniP/data/processed/STARR
 CELL_LINE: ["K562","Jurkat"]
 REPLICATE: ["1","2","3"]
 SEED: [77,23,56,212,5928,6,74,314,88,2019]
-METHOD: ["proportional","random"]

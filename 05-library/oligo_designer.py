@@ -169,9 +169,6 @@ if __name__ == "__main__":
 
             ## create oligo name as string
             oligo_name = "-".join(oligo_name)
-
-            ## increase last gap to pad out to oligo length.
-            #len_padding = neutral[:oligo_len - len(oligo_str)]  ## fill 3' end with neutral sequence to make set oligo length.
             
             #oligo currently includes the 5' adaptor, candidates and the gap sequences. there is no 3' adaptor and 3' RE added yet.
             num_padding_needed = oligo_len - len(args.PAD_RE_5) - len(oligo_str) - len(downstream)  ## desired length, minus 5'RE (not yet added) minus what is built so far, minus downstream (3' adapter and RE)

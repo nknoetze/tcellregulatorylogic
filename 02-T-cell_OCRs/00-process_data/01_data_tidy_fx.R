@@ -1,6 +1,6 @@
-library(GenomicRanges)
 library(data.table)
 library(tidyverse)
+library(GenomicRanges)
 
 ### --------------------------------------- ###
 ###           Clean up Metadata File        ###
@@ -36,7 +36,7 @@ tidy_meuleman_ocrs_tcell_samples <- function(hg19_ocrs,sample_ids,ocr_ids,tidy_m
   
   #Get the list of OCR ids/identifiers that are on a canonical chromosome (no non-canonical, or Y)
   filtered_ocr_ids <- ocr_idx %>% filter(!(grepl("_|chrY",ocr_id))) %>% select(ocr_id,identifier)
-
+  
   # get the OCRs for T cells,and only keep those annotated in X+ T cell samples.
   # remove OCRs that are on non-canonical or Y chromosomes.
   tcell_ocrs_tidy <- ocrs %>% select(matches(tidy_metadata$sample_id,colnames(.))) %>% filter(rowSums(.)>=min_sample) %>% 
@@ -52,19 +52,11 @@ tidy_meuleman_ocrs_tcells_subtype <- function(tcell_ocrs_tidy, metadata_tidy,ocr
   df_list <- list()
   filtered_metadata <- metadata_tidy %>% filter(Cell_Group != "Tcell")
   ocr_idx <- fread(ocr_ids, nThread=18) %>% mutate(ocr_id=paste0(seqname,":",start,'-',end,sep='')) %>% select(ocr_id,identifier)
-  tcell_ocrs_subtype_tidy <- tcell_ocrs_tidy %>% select(-ocr_id) %>%
-    reshape2::melt() %>%
-    rename('sample_id'=variable) %>%
-    inner_join(filtered_metadata) %>%
-    # since the values are either 0/1 for each OCR:sample, we can't just count the rows unless we filter for values=1
-    # instead, just summarise the value which will give you the number of samples that have the OCR annotated
-    group_by(identifier,Cell_Group) %>% summarise(n_samples=sum(value)) %>%
-    pivot_wider(names_from=Cell_Group, values_from=n_samples) %>% inner_join(ocr_idx)
   
   #OCRs need to be in at least two T cell samples (for CD8 and CD4 T cells collectively)
   #But the OCR only needs to be in at least one sample for each cell group
   tcell_ocrs_subtype <- tcell_ocrs_tidy %>% select(-ocr_id) %>% 
-    reshape2::melt() %>% rename('sample_id'=variable) %>% inner_join(filtered_metadata) %>% 
+    reshape2::melt() %>% rename(variable='sample_id') %>% inner_join(filtered_metadata) %>% 
     group_by(identifier,Cell_Group) %>% summarise(n_samples=sum(value)) %>% 
     pivot_wider(names_from=Cell_Group, values_from=n_samples) %>% inner_join(ocr_idx) %>% 
     mutate(sum=(CD4_Tcell+CD8_Tcell)) %>% filter(sum>=2) %>% 
@@ -82,21 +74,18 @@ tidy_meuleman_ocrs_tcells_subtype <- function(tcell_ocrs_tidy, metadata_tidy,ocr
 tidy_interactions <- function(interactions_data_dir){
   interactions_df <- data.frame()
   tidy_interactions_list <- list()
-  bin_sizes <- c('Loop_1kb','Loop_2.5kb','Loop_5kb')
+  bin_sizes <- c('Loop_2.5kb')
   #Makes sure we are looking at the Stringent files and significant interactions (Q < 0.01) for the 2.5 and 1kb bins
   interaction_files <- list.files(interactions_data_dir,pattern="FitHiChIP.interactions_FitHiC_Q0.01.bed",recursive=TRUE,full.names=TRUE)
   stringent_files_indx <- grepl(pattern = "Stringent",interaction_files)
   stringent_interaction_files <- interaction_files[stringent_files_indx]
-  #Get the 5kb interaction files which use the unfiltered bed file!!!!!! (To be consistent with previous results??)
-  interaction_files_5kb <- list.files(interactions_data_dir,pattern="FitHiChIP.interactions_FitHiC.bed",recursive=TRUE,full.names=TRUE)
-  #combine to get full list.
-  all_interaction_files <- append(interaction_files_5kb,stringent_interaction_files)
+  stringent_files_indx <- grepl(pattern = "Loop_2.5kb",stringent_interaction_files)
+  stringent_interaction_files <- stringent_interaction_files[stringent_files_indx]
   
-  
-  for(file in all_interaction_files){
+  for(file in stringent_interaction_files){
     # Read in the interaction files for each cell type. From the file name, extract the celltype and the bin size.
-  # Select the useful columns, and rename some of them, append the cell type to the dataframe
-  # Remove interactions on the Y chromosome.
+    # Select the useful columns, and rename some of them, append the cell type to the dataframe
+    # Remove interactions on the Y chromosome.
     split_file=strsplit(file,"/")
     celltype=split_file[[1]][10]
     binsize=split_file[[1]][11]
@@ -135,7 +124,7 @@ tidy_merged_interactions <- function(interactions_data_dir,prefix){
   interaction_files <- list.files(interactions_data_dir,pattern="FitHiChIP.interactions_FitHiC_Q0.01.merged.bed",recursive=TRUE,full.names=TRUE)
   file_indx <- grepl(pattern = prefix,interaction_files)
   interaction_files <- interaction_files[file_indx]
-
+  
   for(file in interaction_files){
     # Read in the interaction files for each cell type. From the file name, extract the celltype and the bin size.
     # Select the useful columns, and rename some of them, append the cell type to the dataframe

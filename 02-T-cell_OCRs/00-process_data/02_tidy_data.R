@@ -1,7 +1,7 @@
 ### --------------------------------------- ###
 ###          Load source scripts            ###
 ### --------------------------------------- ###
-source('/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/data_tidy_fx.R')
+#source('/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/data_tidy_fx.R')
 
 ### --------------------------------------- ###
 ###        List of paths for tidying        ###
@@ -56,10 +56,6 @@ merged_tcell_ocrs_subtype <- merge_ocrs(tcell_ocrs_subtype)
 ### --------------------------------------- ###
 ###         Write out the tidy files        ###
 ### --------------------------------------- ###
-fwrite(tidy_metadata,'/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_metadata_tidy.tsv',sep="\t",quote=FALSE)
-#OCRs in 1+ T cell samples
-fwrite(tidy_tcell_1sample_ocrs,'/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_sample_ocrs_tidy.tsv',sep="\t",quote=FALSE)
-
 fwrite(merged_tcell_ocrs_subtype,'/projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_tidy.tsv',sep="\t",quote=FALSE)
 
 # Processed interactions

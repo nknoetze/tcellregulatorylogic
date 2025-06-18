@@ -70,5 +70,5 @@ get_median_expression <- function(counts_df){
 
 ## Step 1: Getting the Median Expression for Each Gene and cell type
 #The median expression is calculated on a per-cell-type basis for each gene (protein coding, IGC, TRC genes).
-median_expression_nobatchcorr <- get_median_expression(counts_nobatchcorr)
-#median_expression_nobatchcorr %>% inner_join(genes) %>% fwrite('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv',sep='\t',quote=FALSE)
+median_expression_nobatchcorr <- get_median_expression(counts_nobatchcorr) %>% inner_join(genes)
+#median_expression_nobatchcorr %>% fwrite('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv',sep='\t',quote=FALSE)

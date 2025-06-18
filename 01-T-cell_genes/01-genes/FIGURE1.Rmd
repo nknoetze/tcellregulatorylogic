@@ -20,11 +20,11 @@ ranked_pc_filtered <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_
 
 ```{r expr_heatmap,fig_width=16.5,fig_height=11}
 #Top 22
-top_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% head(n=22) %>% mutate(set='Top 22 Genes')
-bottom_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% tail(n=22) %>% mutate(set='Bottom 10 Genes')
+top_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% head(n=22) 
+bottom_22 <- ranked_pc_filtered %>% select(-osum,-orank,-trank,-t_o_rank,-gene_id,-tsum) %>% tail(n=22)
 top22_bottom22 <- rbind(top_22,bottom_22)
 
-top22_bottom22_matrix <- top22_bottom22 %>% select(-gene_group,-row,-set) %>% melt() %>% 
+top22_bottom22_matrix <- top22_bottom22 %>% select(-gene_group,-row) %>% melt() %>% 
     mutate(variable=gsub("_n_"," ",variable),
            variable=gsub("_"," ",variable),
            variable=str_to_title(variable)) %>% 
@@ -44,10 +44,10 @@ myColor <- colorRampPalette(c("#2166ac","#FBFEF9","#b2182b"))(paletteLength)
 myBreaks <- c(seq(min(top22_bottom22_scaledrows), 0, length.out=ceiling(paletteLength/2) + 1), 
               seq(max(top22_bottom22_scaledrows)/paletteLength, max(top22_bottom22_scaledrows), length.out=floor(paletteLength/2)))
 
-row_annotation <- data.frame(`Gene Group`= rep(c("Top-Ranked T-cell Gene", "Bottom Ranked T-cell Gene"), each = 22)) %>% rename("Gene Group"=`Gene.Group`)
+row_annotation <- data.frame(`Gene Group`= rep(c("T-cell-specific", "Bottom-Ranked"), each = 22)) %>% rename("Gene Group"=`Gene.Group`)
 rownames(row_annotation) <- rownames(top22_bottom22_scaledrows)
 
-my_colours <-  list(`Gene Group` = c(`Top-Ranked T-cell Gene` = "violetred4", `Bottom Ranked T-cell Gene` = 'grey90'))
+my_colours <-  list(`Gene Group` = c(`T-cell-specific` = "violetred4", `Bottom-Ranked` = 'grey90'))
 # Plot the heatmap
 pheatmap(top22_bottom22_scaledrows, color=myColor, breaks=myBreaks,
          show_rownames = TRUE,cluster_rows = FALSE,

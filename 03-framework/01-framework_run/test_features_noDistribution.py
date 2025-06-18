@@ -139,14 +139,11 @@ MAXHOLDERCOUNT = 1
 # Note that this must be in the form of a dictionary with key as the string and value as the ocrmetrics.function of the same name.
 FUNCTIONS_TO_RUN = {"fimo_geneCount": ocrmetrics.fimo_geneCount,
                     "fimo_geneCount_shuffling": ocrmetrics.fimo_geneCount_shuffling,
-                    "fimo_geneCount_scrambling": ocrmetrics.fimo_geneCount_scrambling,
-                    "fimo_comotif_geneCount": ocrmetrics.fimo_comotif_geneCount,
-                    "fimo_comotif_geneCount_shuffling": ocrmetrics.fimo_comotif_geneCount_shuffling,
-                    "fimo_comotif_geneCount_scrambling": ocrmetrics.fimo_comotif_geneCount_scrambling
+                    "fimo_comotif_geneCount": ocrmetrics.fimo_comotif_geneCount
                     }
 
-FEATURE_METRIC_FLIPPED_FUNCTIONS = ["fimo_geneCount","fimo_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount","fimo_comotif_geneCount_shuffling","fimo_comotif_geneCount_scrambling"]
-SHUFFLING_FUNCTIONS = ["fimo_geneCount_shuffling","fimo_geneCount_scrambling","fimo_comotif_geneCount_shuffling","fimo_comotif_geneCount_scrambling"]
+FEATURE_METRIC_FLIPPED_FUNCTIONS = ["fimo_geneCount","fimo_geneCount_shuffling","fimo_comotif_geneCount"]
+SHUFFLING_FUNCTIONS = ["fimo_geneCount_shuffling"]
 NON_SHUFFLING_FUNCTIONS = ["fimo_geneCount","fimo_comotif_geneCount"]
 
 ## Main

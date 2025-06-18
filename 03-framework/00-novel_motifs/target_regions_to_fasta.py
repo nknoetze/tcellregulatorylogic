@@ -120,10 +120,6 @@ if __name__ == "__main__":
                 if args.REGION_TYPE == "all":
                     ## we will track all regions and their region_type for this set. Priority of region_type is promoter > linked_promoter > non-promoter
                     ## any region will either be non-promoter, or promoter/linked_promoter. 
-
-                    ## NOTE April 29, 2024 - Updating to not include linked_promoters in the 'all' set. This should have been done originally.
-                    # NOTE Sept 23, 2024 - Reverting back to including linked-promoters for comparing ATAC and DNAse datasets.
-                    #if region_type != "linked_promoter":
                 
                     if region_id not in regions:
                         regions[region_id] = region_type

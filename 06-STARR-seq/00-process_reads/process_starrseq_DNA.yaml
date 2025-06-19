@@ -20,4 +20,3 @@ SCRATCH_OUTPUT_DIR: "/projects/holtlab_prj/scratch/23_miniP/data/processed/STARR
 LIBRARY_NAMES: ["1","2","3","4","5","6","7","8"]
 MM_THRESHOLDS: [0]
 UMI_MM: [0]
-SEED: [40,12,57,8123,463,73,11,984,72,66]

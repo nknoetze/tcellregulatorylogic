@@ -20,7 +20,6 @@ datamash_env=config['DATAMASH_ENV']
 library_names=config['LIBRARY_NAMES']
 MM_thresholds=config['MM_THRESHOLDS']
 umi_MMs=config['UMI_MM']
-seed=config['SEED']
 # --------------------------------------------------------------
 # SET RULE ALL
 # --------------------------------------------------------------

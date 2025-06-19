@@ -19,8 +19,6 @@ datamash_env=config['DATAMASH_ENV']
 umi_collapsing_env=config['UMI_COLLAPSING_ENV']
 cell_line=config['CELL_LINE']
 replicate=config['REPLICATE']
-seed=config['SEED']
-
 # --------------------------------------------------------------
 # SET RULE ALL
 # --------------------------------------------------------------

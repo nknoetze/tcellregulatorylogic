@@ -13,7 +13,7 @@ parser$add_argument("-ocr", "--filtered_ocr_file", help="Path to the filtered T-
 parser$add_argument("-int", "--interaction_file", help="Path to the annotated interaction file")
 parser$add_argument("-gen", "--gene_file", help="Path to the gene list")
 parser$add_argument("-o", "--outdir", help="Path to the output directory")
-parser$add_argument("-is_merged", "--is_merged", help="specify if the interactions are merged interactions (merged), unmerged (unmerged), or combined (combined)",default='no')
+
 
 args <- parser$parse_args()
 gencode <- args$gencode
@@ -21,7 +21,6 @@ filtered_ocr_file <- args$filtered_ocr_file
 interaction_file <- args$interaction_file
 gene_file <- args$gene_file
 outdir <- args$outdir
-is_merged <- args$is_merged
 
 ### ----------------------------- ###
 ###        READ IN FILES          ###
@@ -45,40 +44,17 @@ interactions <- fread(interaction_file)
 ###     Prepare the Data          ###
 ### ----------------------------- ###
 ocr_ranges <- makeGRangesFromDataFrame(ocrs,keep.extra.columns = TRUE,ignore.strand = TRUE,seqnames.field = c('chrom'))
-#outdir <- paste('/projects/nknoetze_prj/ocr_prj/results/pulled_ocrs','/','meuleman_tcell_2sample_1cd8_1cd4_ocrs_tidy','/','pulled_ocrs_',sep='')
-#outdir <- paste(outdir,ocr_file_name,'pulled_ocrs_',sep='/')
 
 ### ------------------------------------------------- ###
 ###  Pull out the OCRs for genes with interactions    ###
 ### ------------------------------------------------- ###
 print("Getting significant interactions for genes in the genome")
-
-if(is_merged=='merged'){
-  filtered_interactions <- interactions %>%
-    #only keep interactions that are significant for CD4+ , CD8+ or both cd4 and cd8 t cells
-    # it is okay if the interaction is significant in non-T cells
-    #get the interactions where the gene's promoter is within one of the two bins
-    filter(bin1_gene_id %in% gencode$gene_id|bin2_gene_id %in% gencode$gene_id,
-           StrongConn_CD4Naive > 0 | StrongConn_CD8Naive > 0) %>%
-    separate_rows(bin1_gene_id, sep=";") %>%
-    separate_rows(bin2_gene_id,sep=';') 
-}else if(is_merged=='unmerged'){
-  filtered_interactions <- interactions %>%
-    #only keep interactions that are significant for CD4+ , CD8+ or both cd4 and cd8 t cells
-    # it is okay if the interaction is significant in non-T cells
-    #get the interactions where the gene's promoter is within one of the two bins
-    filter(bin1_gene_id %in% gencode$gene_id|bin2_gene_id %in% gencode$gene_id,
-           qval_CD4Naive < 0.01 | qval_CD8Naive < 0.01) %>%
-    separate_rows(bin1_gene_id, sep=";") %>%
-    separate_rows(bin2_gene_id,sep=';') 
-} else if(is_merged=='combined'){
-  filtered_interactions <- interactions %>%
-    #File is already filtered!
-    #get the interactions where the gene's promoter is within one of the two bins
-    filter(bin1_gene_id %in% gencode$gene_id|bin2_gene_id %in% gencode$gene_id) %>%
-    separate_rows(bin1_gene_id, sep=";") %>%
-    separate_rows(bin2_gene_id,sep=';') 
-}
+filtered_interactions <- interactions %>%
+  #File is already filtered!
+  #get the interactions where the gene's promoter is within one of the two bins
+  filter(bin1_gene_id %in% gencode$gene_id|bin2_gene_id %in% gencode$gene_id) %>%
+  separate_rows(bin1_gene_id, sep=";") %>%
+  separate_rows(bin2_gene_id,sep=';') 
 
 bin1_ranges <- makeGRangesFromDataFrame(filtered_interactions,seqnames.field = 'chrom1',start.field = 's1',end.field = 'e1',keep.extra.columns = TRUE,ignore.strand = TRUE)
 bin2_ranges <- makeGRangesFromDataFrame(filtered_interactions,seqnames.field = 'chrom2',start.field = 's2',end.field = 'e2',keep.extra.columns = TRUE,ignore.strand = TRUE)
@@ -155,11 +131,6 @@ for(query_gene in genes_w_ocrs$gene_id){
 }
 
 ocrs_by_gene_df_temp <- rbindlist(ocrs_by_gene) 
-#Add promoter OCRs that do not overlap any Hi-C bins
-##Added June 28 2024
-all_promoter_ocrs <- ocrs %>% filter(ocr_type=='promoter') %>% mutate(score='.',strand='*',promoter_id=gene_id) %>% 
-  rename('query_gene'=gene_id) %>% select(-gene_name)
-ocrs_by_gene_df <- rbind(all_promoter_ocrs,ocrs_by_gene_df_temp) %>% unique()
 ### ------------------------------------------------- ###
 ###       Subset Pulled OCRs to gene Lists            ###
 ### ------------------------------------------------- ###
@@ -173,7 +144,7 @@ interacting_ocr_df_subset <- interacting_ocr_df %>% filter(interaction_bin1_gene
 ### ------------------------------------------------- ###
 #NOTE: INTERACTIONS FILE DOES NOT CONTAIN PROMOTER OCRS THAT ARE UNLINKED.
 fwrite(interacting_ocr_df,paste(outdir,'pulled_ocrs_master_interactions.tsv.gz',sep=''),sep='\t',quote=FALSE)
-ocrs_by_gene_df %>% mutate(dist_tss=0) %>% fwrite(paste(outdir,'pulled_ocrs_master_by_gene.tsv',sep=''),sep='\t',quote=FALSE)
+ocrs_by_gene_df %>% fwrite(paste(outdir,'pulled_ocrs_master_by_gene.tsv',sep=''),sep='\t',quote=FALSE)
 #NOTE: INTERACTIONS FILE DOES NOT CONTAIN PROMOTER OCRS THAT ARE UNLINKED.
 fwrite(interacting_ocr_df_subset,paste(outdir,'pulled_ocrs_interactions.tsv.gz',sep=''),sep='\t',quote=FALSE)
 fwrite(ocrs_by_gene_df_subset,paste(outdir,'pulled_ocrs_by_gene.tsv.gz',sep=''),sep='\t',quote=FALSE)

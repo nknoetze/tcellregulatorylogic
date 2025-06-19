@@ -8,7 +8,7 @@ FILTERED_GENE_DIR: /projects/nknoetze_prj/ocr_prj/data/processed/gene_lists
 TIDY_OCR_FILE_DIR: /projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase
 INTERACTIONS_DIR: /projects/nknoetze_prj/ocr_prj/data/processed/interactions/DICE/shared
 
-OCR_FILE: /projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_tidy.tsv
+#OCR_FILE: /projects/nknoetze_prj/ocr_prj/data/processed/meuleman_dnase/meuleman_tcell_2sample_1cd8_1cd4_ocrs_merged_tidy.tsv
 # -------------------------------------------------------------------#
 # DIRECTORY CONFIG
 # -------------------------------------------------------------------#

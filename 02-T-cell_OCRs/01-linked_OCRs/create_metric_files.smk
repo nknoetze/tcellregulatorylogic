@@ -1,9 +1,7 @@
 ### OUT DIR VARIABLES ###
 out_dir=config['OUTDIR']
-
 pulled_ocrs_out_dir=config['PULLED_OCRS']
 pulled_ocrs_out_dir_1=f"{out_dir}/{pulled_ocrs_out_dir}"
-
 ocr_metric_files_out_dir=config['OCR_METRIC_FILES']
 ocr_metric_files_out_dir_1=f"{out_dir}/{ocr_metric_files_out_dir}"
 
@@ -16,7 +14,6 @@ filtered_gene_file_dir=config['FILTERED_GENE_DIR']
 filtered_ocr_data_name=config['FILTERED_OCR_DATA_NAME']
 bin_size=config['BIN_SIZE']
 merge_param=config['MERGE_PARAM']
-interaction_annotation=config['INTERACTION_ANNOTATION']
 interaction_dir=config['INTERACTIONS_DIR']
 
 # # # --------------------------------------------------------------
@@ -108,14 +105,12 @@ rule link_ocrs:
 	params:
 		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/pull.ocrs.R",
 		gencode=gencode,
-		outdir=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/",
-		is_merged="combined"
+		outdir=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/"
 	output:
 		pulled_ocrs=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/pulled_ocrs_master_by_gene.tsv"
 	shell:
 		"Rscript {params.script} --filtered_ocr_file {input.filtered_ocr_file} --interaction_file {input.annotated_interaction_file} "
-		"--gene_file {input.gene_file} --gencode {params.gencode} "
-		"--outdir {params.outdir} --is_merged {params.is_merged}"
+		"--gene_file {input.gene_file} --gencode {params.gencode} --outdir {params.outdir}"
 
 # # # --------------------------------------------------------------
 # # # CREATE METRIC FILES

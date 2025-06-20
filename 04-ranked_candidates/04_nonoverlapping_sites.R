@@ -15,8 +15,6 @@ parser$add_argument("-tp", "--tfbs_pos", help="Path to the file containing tfbs/
 parser$add_argument("-ntf", "--n_tfs", help="Number of tfbs analysed at a time (2 or 3)",type='integer',required=TRUE)
 parser$add_argument("-rs", "--ocr_type", help="ocr type analysed (promoter or non-promoter)",required=TRUE)
 parser$add_argument("-nc", "--n_cores", help="number of cores to use",required=TRUE,type='integer')
-parser$add_argument("-ot", "--overlap_type", help="specify overlap type, full overlap or partial (1bp +)",required=TRUE)
-parser$add_argument("-m", "--metric", help="name of the metric",required=TRUE)
 
 args <- parser$parse_args()
 feature_file <- args$feature_file
@@ -24,8 +22,6 @@ tfbs_pos <- args$tfbs_pos
 n_tfs <- args$n_tfs
 ocr_type <- args$ocr_type
 n_cores <- args$n_cores
-overlap_type <- args$overlap_type
-metric <- args$metric
 
 ### ----------------------------- ###
 ###          READ IN FILES        ###
@@ -83,36 +79,28 @@ start <- Sys.time()
 #finally, only keep features where there is a binding site for EACH motif in the feature.
 #Use the dataframe that has features with motifs on the same ocr as the starting point
 print('getting non overlapping sites')
-if(n_tfs==2){
-  nonoverlapping_sites <- foreach(i=1:length(unique_motifs),.options.snow=opts,.combine='rbind',.packages=c('data.table','GenomicRanges','tidyverse')) %dopar% {
-    coenriched_motif=unique_motifs[i]
-    filtered_df <- overlapping_df %>% filter(feature==coenriched_motif)
-    #Split the motif pairs and get their locations in the ocrs
-    motif1=stringr::str_split(coenriched_motif,';')[[1]][1]
-    motif2=stringr::str_split(coenriched_motif,';')[[1]][2]
-    
-    #get motif locations
-    motif1_loc <- filtered_df %>% filter(motif==motif1 & feature==coenriched_motif) %>% distinct(feature,motif,chrom,site_start,site_end) %>% makeGRangesFromDataFrame(ignore.strand = TRUE,start.field = 'site_start',end.field = 'site_end')
-    motif2_loc <- filtered_df %>% filter(motif==motif2 & feature==coenriched_motif) %>% distinct(feature,motif,chrom,site_start,site_end) %>% makeGRangesFromDataFrame(ignore.strand = TRUE,start.field = 'site_start',end.field = 'site_end')
-    
-    #find overlapping sites
-    if(overlap_type!='full'){
-      overlapping_12 <- subsetByOverlaps(motif1_loc, motif2_loc, invert = FALSE) %>% as.data.frame()
-      overlapping_21 <- subsetByOverlaps(motif2_loc, motif1_loc, invert = FALSE) %>% as.data.frame() 
-    } else if(overlap_type=='full'){
-      overlapping_12 <- subsetByOverlaps(motif1_loc, motif2_loc, invert = FALSE,type='within') %>% as.data.frame()
-      overlapping_21 <- subsetByOverlaps(motif2_loc, motif1_loc, invert = FALSE,type='within') %>% as.data.frame() 
-    }
-    
-    overlapping_sites <- rbind(overlapping_12,overlapping_21)
-    
-    overlapping_sites_df <- overlapping_sites %>%
-      rename('chrom'=seqnames,'site_start'=start,'site_end'=end) %>%
-      select(-width,-strand) %>% left_join(filtered_df,by=c("chrom", "site_start", "site_end"))
-    
-    #Remove any overlapping sites
-    non_overlapping <- filtered_df %>% filter(!(motif_pos_id %in% overlapping_sites_df$motif_pos_id))
-  }
+nonoverlapping_sites <- foreach(i=1:length(unique_motifs),.options.snow=opts,.combine='rbind',.packages=c('data.table','GenomicRanges','tidyverse')) %dopar% {
+  coenriched_motif=unique_motifs[i]
+  filtered_df <- overlapping_df %>% filter(feature==coenriched_motif)
+  #Split the motif pairs and get their locations in the ocrs
+  motif1=stringr::str_split(coenriched_motif,';')[[1]][1]
+  motif2=stringr::str_split(coenriched_motif,';')[[1]][2]
+  
+  #get motif locations
+  motif1_loc <- filtered_df %>% filter(motif==motif1 & feature==coenriched_motif) %>% distinct(feature,motif,chrom,site_start,site_end) %>% makeGRangesFromDataFrame(ignore.strand = TRUE,start.field = 'site_start',end.field = 'site_end')
+  motif2_loc <- filtered_df %>% filter(motif==motif2 & feature==coenriched_motif) %>% distinct(feature,motif,chrom,site_start,site_end) %>% makeGRangesFromDataFrame(ignore.strand = TRUE,start.field = 'site_start',end.field = 'site_end')
+  
+  #find overlapping sites
+  overlapping_12 <- subsetByOverlaps(motif1_loc, motif2_loc, invert = FALSE,type='within') %>% as.data.frame()
+  overlapping_21 <- subsetByOverlaps(motif2_loc, motif1_loc, invert = FALSE,type='within') %>% as.data.frame() 
+  overlapping_sites <- rbind(overlapping_12,overlapping_21)
+  
+  overlapping_sites_df <- overlapping_sites %>%
+    rename('chrom'=seqnames,'site_start'=start,'site_end'=end) %>%
+    select(-width,-strand) %>% left_join(filtered_df,by=c("chrom", "site_start", "site_end"))
+  
+  #Remove any overlapping sites
+  non_overlapping <- filtered_df %>% filter(!(motif_pos_id %in% overlapping_sites_df$motif_pos_id))
 }
 
 ### ------------------------------- ###
@@ -127,7 +115,7 @@ nonoverlapping_sites <- nonoverlapping_sites %>%
 stopCluster(cl)
 print(Sys.time() - start )
 
-outfile <- paste(gsub('.txt|.tsv','',feature_file),'.',overlap_type,'.',metric,'.nonoverlapping.tsv',sep='')
+outfile <- paste(gsub('.txt|.tsv','',feature_file),'.full.nonoverlapping.tsv',sep='')
 print('writing output file')
 print(outfile)
 fwrite(nonoverlapping_sites,outfile,sep='\t',quote=FALSE)

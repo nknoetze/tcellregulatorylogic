@@ -20,4 +20,3 @@ MOTIF_TYPE: ["tfbs","novel","both"]
 FEATURE_FILE_NAME: results_231010
 OCR_TYPE: ["all","promoter","non-promoter"]
 MOTIF_COMPARISONS: ["allsites"]
-OVERLAP_TYPE: ["full"]

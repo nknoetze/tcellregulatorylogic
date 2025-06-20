@@ -12,8 +12,6 @@ parser$add_argument("-ff", "--feature_file", help="Path to the feature file obta
 parser$add_argument("-mt", "--motif_type", help="indicate type of motif (tf, novel, both)")
 parser$add_argument("-ot", "--ocr_type", help="indicate type of ocr (promoter or non-promoter")
 parser$add_argument("-ntf", "--n_tfs", help="Number of tfbs analysed at a time (2 or 3)",type='integer',required=TRUE)
-parser$add_argument("-m", "--metric", help="Name of the metric",required=TRUE)
-
 
 args <- parser$parse_args()
 tcell_tfs <- args$tcell_tfs
@@ -21,7 +19,6 @@ feature_file <- args$feature_file
 motif_type <- args$motif_type
 ocr_type <- args$ocr_type
 n_tfs <- args$n_tfs
-metric <- args$metric
 
 ### ----------------------------- ###
 ###        READ IN THE DATA       ###
@@ -36,7 +33,7 @@ feature_results <- fread(feature_file) %>%
 #feature_results <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/OCR0040SB/results_230925.tsv',nThread=48) %>%
   mutate(fc=((target_value+0.000001)/(background_mean+0.000001)),
          feature=str_to_upper(feature)) %>%
-  filter(region_set==ocr_type,grepl(!!metric,datatype),p_val < 0.05,!(grepl("\\.",feature)),fc >2)
+  filter(region_set==ocr_type,datatype=='fimo_comotif_geneCount',p_val < 0.05,!(grepl("\\.",feature)),fc >2)
 
 
 if(motif_type=='tfbs'){
@@ -93,5 +90,5 @@ print('done finding expressed TFs')
 ### ----------------------------- ###
 ###        WRITE FILES            ###
 ### ----------------------------- ###
-outfile <- paste(gsub('.txt|.tsv','',feature_file),'.',ocr_type,'.',motif_type,'.',metric,'.filtered.tsv',sep='')
+outfile <- paste(gsub('.txt|.tsv','',feature_file),'.',ocr_type,'.',motif_type,'.filtered.tsv',sep='')
 fwrite(expressed_comotifs,outfile,sep='\t',quote=FALSE)

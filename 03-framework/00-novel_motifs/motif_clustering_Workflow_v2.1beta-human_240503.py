@@ -63,7 +63,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "title")
     parser.add_argument("--clustered_motifs", dest = "CLUSTERED_MOTIFS", help = "TOMTOM Clustered Motif file.", type = str)
     parser.add_argument("--pfm_dir", dest = "PFM_DIR", help = "Directory of single PFMs", type = str)
-    parser.add_argument("--plot_dir", dest = "PLOT_DIR", help = "Directory of archetypic plots", type = str)
+    #parser.add_argument("--plot_dir", dest = "PLOT_DIR", help = "Directory of archetypic plots", type = str)
     parser.add_argument("--output", dest = "OUTPUT", help = "Uniprobe Motif Output", type = str)
     parser.add_argument("-d", "--debug", action = "store_true", dest = "DEBUG", help = "Flag for setting debug/test state.")
     parser.add_argument("-v", "--verbose", action = "store_true", dest = "VERB", help = "Flag for setting verbose output.")
@@ -291,10 +291,10 @@ if __name__ == "__main__":
         
         ## plot
         
-        fig = plt.figure()
-        fig.set_size_inches((w+2)*.125+2, (n+1)*0.5+1)
+        # fig = plt.figure()
+        # fig.set_size_inches((w+2)*.125+2, (n+1)*0.5+1)
         
-        gs = mgridspec.GridSpec(n+1, 1)
+        # gs = mgridspec.GridSpec(n+1, 1)
         
         for i, row in alignment_df.iterrows():
             ax = fig.add_subplot(gs[i+1, :])
@@ -310,58 +310,58 @@ if __name__ == "__main__":
             if rc:
                 pwm = pwm[::-1,::-1]
             
-            sequence.seq_plot(relative_info_content(pwm.T), ax=ax, offset=left)
+            # sequence.seq_plot(relative_info_content(pwm.T), ax=ax, offset=left)
 
-            ax.axvspan(l-1, s, fc='lightgrey', alpha=0.5)
-            ax.axvspan(e, r+1, fc='lightgrey', alpha=0.5)
+            # ax.axvspan(l-1, s, fc='lightgrey', alpha=0.5)
+            # ax.axvspan(e, r+1, fc='lightgrey', alpha=0.5)
             
-            ax.set_xlim(left=l-1, right=r+1)
-            ax.set_ylim(bottom=0, top=2.1)
+            # ax.set_xlim(left=l-1, right=r+1)
+            # ax.set_ylim(bottom=0, top=2.1)
 
-            ax.xaxis.set_visible(False)
-            ax.set_yticks([])
+            # ax.xaxis.set_visible(False)
+            # ax.set_yticks([])
             
-            source_id = motif_id
-            tf_name = ""
+            #source_id = motif_id
+            #tf_name = ""
 
-            ax.set_ylabel(tf_name + '\n (' + source_id + ')', rotation=0, ha='right', va='center', fontname="Courier", fontsize='medium')
+            #ax.set_ylabel(tf_name + '\n (' + source_id + ')', rotation=0, ha='right', va='center', fontname="Courier", fontsize='medium')
 
         # Archetype motif
-        ax = fig.add_subplot(gs[0,:])
+        # ax = fig.add_subplot(gs[0,:])
 
-        sequence.seq_plot(relative_info_content(avg_pwm), ax=ax, offset=s)
+        # sequence.seq_plot(relative_info_content(avg_pwm), ax=ax, offset=s)
 
-        ax.set_xlim(left=l-1, right=r+1)
-        ax.set_ylim(bottom=0, top=2.1)
-        ax.xaxis.set_visible(False)
-        ax.set_yticks([])
+        # ax.set_xlim(left=l-1, right=r+1)
+        # ax.set_ylim(bottom=0, top=2.1)
+        # ax.xaxis.set_visible(False)
+        # ax.set_yticks([])
 
-        ax.axvspan(s, e, fc='none', ec='r', lw=2, clip_on=False)
-        [ax.spines[loc].set_visible(False) for loc in ['top', 'bottom', 'left', 'right']]
+        # ax.axvspan(s, e, fc='none', ec='r', lw=2, clip_on=False)
+        # [ax.spines[loc].set_visible(False) for loc in ['top', 'bottom', 'left', 'right']]
 
-        ax.set_ylabel('Archetype\nconsensus', rotation=0, ha='right', va='center', fontname="Courier", fontsize='large', fontweight='bold', color='r')
+        # ax.set_ylabel('Archetype\nconsensus', rotation=0, ha='right', va='center', fontname="Courier", fontsize='large', fontweight='bold', color='r')
         
         cluster_id = str(alignment_df['cluster'][0])
-        gene_family = "gene_family"
-        dbd = "dbd"
-        cluster_name = cluster_id #+ ':' + gene_family + ':' + dbd
+        #gene_family = "gene_family"
+        #dbd = "dbd"
+        cluster_name = cluster_id 
 
-        figw, figh = fig.get_size_inches()
-        height_frac = (figh-0.75)/figh
+        #figw, figh = fig.get_size_inches()
+        #height_frac = (figh-0.75)/figh
         
     
         
-        gs.update(left=1-((figw-1.75)/figw), right=(figw-0.25)/figw, top=(figh-0.75)/figh, bottom=1-((figh-0.25)/figh))
+        #gs.update(left=1-((figw-1.75)/figw), right=(figw-0.25)/figw, top=(figh-0.75)/figh, bottom=1-((figh-0.25)/figh))
         
-        fig.suptitle(cluster_name.upper(), fontname="IBM Plex Mono", fontweight='bold', fontsize='large', y=1-(.5/figh), va='center')
-        plt.savefig(os.path.join(args.PLOT_DIR, f'{cluster_id}.pdf'))
+        #fig.suptitle(cluster_name.upper(), fontname="IBM Plex Mono", fontweight='bold', fontsize='large', y=1-(.5/figh), va='center')
+        #plt.savefig(os.path.join(args.PLOT_DIR, f'{cluster_id}.pdf'))
         
         header_line =  cluster_name + '\n'
         mat = pd.DataFrame(avg_pwm.T, index=['A:', 'C:', 'G:', 'T:']).to_string(header=False)
         return header_line + mat
 
 
-    plt.ioff()
+    #plt.ioff()
 
     with open(args.OUTPUT, 'w') as fh:
         

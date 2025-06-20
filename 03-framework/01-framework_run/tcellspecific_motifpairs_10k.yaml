@@ -20,5 +20,6 @@ EXPRESSED_TFS: "/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_
 
 NUM_MOTIFS: [2]
 MAX_BACKGROUND_WRITTEN: 100
+SCRAMBLE_METHOD: "none"
 
 OUTPUT: "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_motifs_10k_coenrich/results_231010.tsv"

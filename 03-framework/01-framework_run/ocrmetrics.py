@@ -42,12 +42,12 @@ def init(source_data_dir, functions_to_load,num_motifs):
     ## load data and populate features
 
     for func in functions_to_load:
+        print(func)
         ## data
         if "fimo" in func and "fimo" not in data:
             data["fimo"] = fimo_file
-        else:
-            ## no special feature list, just set as single-length array with func name.
-            feature_list[func] = [func]
+        
+        feature_list[func] = [func]
     ## return feature_list (instead of relying on class features)
     return feature_list
 

@@ -203,14 +203,16 @@ if __name__ == "__main__":
     if args.SELECTED_FUNCTIONS and args.SELECTED_FUNCTIONS != "":
         ## subset FUNCTIONS_TO_RUN
         FUNCTIONS_TO_RUN = {x:FUNCTIONS_TO_RUN[x] for x in args.SELECTED_FUNCTIONS}
-    
 
     ## initialize ocrmetrics
     statprint("Initializing ocrmetrics...")
     ocrmetrics_features = ocrmetrics.init(args.OCRMET_DAT_DIR, FUNCTIONS_TO_RUN.keys(),args.NUM_MOTIFS)
+   
+    print("Returned ocrmetrics_features keys:", ocrmetrics_features.keys())
+
 
     statprint("The following feature types will be calculated:")
-    [statprint("\t{}: {} feature(s)".format(func, len(ocrmetrics_features[func]))) for func in FUNCTIONS_TO_RUN]
+    #[statprint("\t{}: {} feature(s)".format(func, len(ocrmetrics_features[func]))) for func in FUNCTIONS_TO_RUN]
 
     ## Reading in Gene Names for error reporting
     statprint("Reading in gene name annotations...")

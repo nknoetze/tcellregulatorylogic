@@ -1,0 +1,210 @@
+---
+title: "ZOE4sigma_10k"
+output: 
+  pdf_document:
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(pheatmap)
+library(knitr)
+library(UpSetR)
+library(grid)
+library(tidytext)
+library(ggupset)
+#need to use this version of cmake in order to insall ggpubr/nloptr
+#old_path <- Sys.getenv("PATH")
+#Sys.setenv(PATH = paste("/gsc/software/linux-x86_64-centos7/cmake-3.22.2/bin", old_path, sep = ":")) 
+#BiocManager::install('nloptr')
+
+## NEED TO INSTALL OLD VERSION TO BE COMPATIBLE WITH CURRENT R VERSION..
+#packageurl <- "https://cran.r-project.org/src/contrib/Archive/ggpubr/ggpubr_0.2.tar.gz" 
+#install.packages(packageurl, repos=NULL, type="source",dependencies = FALSE)
+library(ggpubr)
+## NEED TO INSTALL OLD VERSION TO BE COMPATIBLE WITH CURRENT R VERSION..
+#packageurl <- "https://cran.r-project.org/src/contrib/Archive/pbkrtest/pbkrtest_0.5.1.tar.gz" 
+#install.packages(packageurl, repos=NULL, type="source",dependencies = FALSE)
+library(rstatix)
+library(tidyverse)
+
+
+gene_expression <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatchcorr.tsv')
+tcell_expressed_tfs <- fread('/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_tcellexpressed.tsv')
+
+zoe_results <- '/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.tsv'
+izoe_results <- '/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.tsv'
+zoe_feature_locations_dir <- "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/"
+izoe_feature_locations_dir <- "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/"
+```
+
+
+```{r function}
+process_data <- function(results_file, expression_file,tcell_expressed_tf_file,feature_location_dir){
+  tcells <- tcells <- c('cd4_naive','cd8_naive','th17','th1-17','th1','tfh','th2','treg_memory','treg_naive','cd4_n_stim','cd8_n_stim')
+  #filter results for fc >2 and p value < 0.05.
+  results_df <- fread(results_file, nThread=48) %>% 
+    filter(grepl("fimo_geneCount",datatype),p_val < 0.05,!(grepl("\\.",feature))) %>% 
+    #not all results contain the background values,making dummy column so this column is removed for the next steps
+    mutate(fc=((target_value+0.000001)/(background_mean+0.000001)),
+           background_values='') %>%
+    filter(fc > 2) %>% 
+    mutate(gene_list="Sigma 4 ZOE",
+           feature=str_to_upper(feature),
+    motif_type=ifelse(grepl("PCA_AC", feature),"Novel Motif", "Known Motif"),
+    feature_region=case_when(region_set=='promoter' ~ paste('p',str_to_upper(feature),sep=''),
+                             region_set=='non-promoter' ~ paste('np',str_to_upper(feature),sep=''),
+                             TRUE ~ paste('a',str_to_upper(feature),sep=''))) %>% select(-background_values)
+   # filter(datatype=='fimo_geneCount',p_val < 0.05,!(grepl("\\.",feature)),fc >2) %>% select(-background_values)
+  
+  
+  expressed_motifs_df <- results_df %>% 
+    #separate the feature to get the individual motif/tf names
+    mutate(tf=feature) %>% 
+    separate_rows(tf,sep="::")%>% 
+    #determine if feature is a dimer (contains two motifs)
+    group_by(feature) %>% mutate(n_tf=n_distinct(tf)) %>% 
+    select(tf,n_tf,feature, region_set, fc,gene_list,feature_region) %>%
+    #add the expression values
+    inner_join(expression_file,by=c('tf'='gene_name')) %>% select(-gene_id) %>%
+    pivot_longer(cols=c(-tf,-fc,-gene_list,-region_set,-n_tf,-feature,-feature_region)) %>% 
+    #only keep TFs that are expressed in t cells
+    filter(tf %in% tcell_expressed_tf_file$gene_name) %>% 
+    #Only keep entries for cell types where expression meeets threshold
+    filter(value>237.04) %>% 
+    #Only keep entries for where both the tfs are expressed if part of a dimer
+    group_by(feature) %>% filter(n_distinct(tf)==n_tf) %>% ungroup() %>% 
+    #cleanup names
+    rename('cell_type'=name) %>% 
+      mutate(cell_group=ifelse(cell_type %in% tcells,'T-cells','Non-T cells'),
+             cell_type=gsub("_n_"," ",cell_type),
+             cell_type=gsub("_"," ",cell_type),
+             cell_type=gsub("_n_"," ",cell_type),
+             cell_type=str_to_title(cell_type),
+             region_set=str_to_title(region_set))
+
+  # list of motifs that are expressed and significantly enriched.
+  #if novel motif, just get significant results.
+  significant_motifs_df <- results_df %>% 
+    filter(feature_region %in% expressed_motifs_df$feature_region | feature_region %in% results_df$feature_region & motif_type=="Novel Motif")
+  
+  ####### HEATMAPS PROCESSING
+  feature_location_files <- list.files(feature_location_dir,pattern='fimo_geneCount.*RAW.featureLocations.tsv$',full.names = TRUE)
+  names(feature_location_files) <- basename(feature_location_files) %>% sub(".*\\+(.*?)\\.RAW.*", "\\1", .)
+  feature_locations_df <- map_dfr(feature_location_files,fread,.id='region_set') %>% filter(!is.na(score)) %>%
+    mutate(feature_region=case_when(region_set=='promoter' ~ paste('p',str_to_upper(feature),sep=''),
+                                    region_set=='non-promoter' ~ paste('np',str_to_upper(feature),sep=''),
+                                    TRUE ~ paste('a',str_to_upper(feature),sep='')),
+           motif_type=ifelse(grepl("PCA_AC",feature),"Novel Motif","Known Motif"))
+  
+  return(list(expressed_motifs = expressed_motifs_df, significant_motifs=significant_motifs_df,feature_locations=feature_locations_df)) 
+}
+
+processed_zoe_files <- process_data(zoe_results,expression_file=gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs,feature_location_dir = zoe_feature_locations_dir)
+processed_izoe_files <- process_data(izoe_results,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs,feature_location_dir = izoe_feature_locations_dir)
+```
+
+#### Figure 2B&D
+```{r shared_motifs,fig.width=8,fig.height=6}
+zoe_tfbs <- processed_zoe_files$significant_motifs %>% mutate(gene_set='T-cell-specific') %>% mutate(region_set=case_when(region_set=="non-promoter"~"Distal Regulatory Element",region_set=="promoter"~"Proximal Regulatory Element",TRUE ~ "All Regulatory Elements"))
+izoe_tfbs <- processed_izoe_files$significant_motifs %>% mutate(gene_set='Bottom-ranked') %>% mutate(region_set=case_when(region_set=="non-promoter"~"Distal Regulatory Element",region_set=="promoter"~"Proximal Regulatory Element",TRUE ~ "All Regulatory Elements"))
+
+#Get features that are co-enriched in any gene set
+shared_tfbs <- rbind(zoe_tfbs,izoe_tfbs)  %>% filter(motif_type=='Known Motif') %>% 
+  distinct(feature_region,gene_set,motif_type,region_set) %>% group_by(feature_region,motif_type,region_set) %>% summarise(gene_set=list(gene_set)) %>% ungroup()
+shared_novel <- rbind(zoe_tfbs,izoe_tfbs) %>% filter(motif_type=='Novel Motif') %>% 
+  distinct(feature_region,gene_set,motif_type,region_set) %>% group_by(feature_region,motif_type,region_set) %>% summarise(gene_set=list(gene_set))%>% ungroup()
+
+shared_novel %>% filter(region_set!="All Regulatory Elements") %>%
+  ggplot(aes(x=gene_set,fill=region_set))+
+  geom_bar()+
+  facet_wrap(region_set~.,scales='free')+
+  scale_x_upset() +xlab('Gene Set')+ ylab("Number of Enriched Motifs")+
+  scale_fill_manual(values=c('violetred3','dodgerblue4'))+ theme_bw() +  
+  theme(plot.title=element_text(hjust=0.5),
+        legend.position='none')
+
+shared_tfbs %>% filter(region_set!="All Regulatory Elements") %>%
+  ggplot(aes(x=gene_set,fill=region_set))+
+  geom_bar()+
+  facet_wrap(region_set~.,scales='free')+
+  scale_x_upset() +xlab('Gene Set')+ ylab("Number of Enriched Motifs")+
+  scale_fill_manual(values=c('violetred3','dodgerblue4'))+ theme_bw() +  
+  theme(plot.title=element_text(hjust=0.5),legend.position='none')
+```
+
+
+#FIGURE 2C&E
+```{r gene_tfbs_heatmap,fig.width=11,fig.height=11}
+###########
+library(tidytext)
+library(forcats)  # For reorder_within()
+library(ggforce)
+
+############
+background_values <- fread(zoe_results) %>% 
+  filter(grepl("fimo_geneCount",datatype),p_val < 0.05,!(grepl("\\.",feature))) %>% 
+  filter(grepl("fimo_geneCount",datatype),p_val < 0.05,!(grepl("\\.",feature))) %>% 
+  mutate(fc=((target_value+0.000001)/(background_mean+0.000001))) %>% filter(fc > 2) %>% 
+  mutate(gene_list="Sigma 4 ZOE",feature=str_to_upper(feature),motif_type=ifelse(grepl("PCA_AC", feature),"Novel Motif", "Known Motif"),feature_region=case_when(region_set=='promoter' ~ paste('p',str_to_upper(feature),sep=''),region_set=='non-promoter' ~ paste('np',str_to_upper(feature),sep=''),TRUE ~ paste('a',str_to_upper(feature),sep=''))) %>% distinct(background_values,target_value,feature_region,region_set,feature,background_mean) %>%
+  filter(feature_region %in% processed_zoe_files$significant_motifs$feature_region) %>%
+  mutate(region_set=case_when(region_set=='promoter'~"Proximal OCR",
+                              region_set=='non-promoter'~"Distal OCR",
+                              TRUE ~ "All"),
+         motif_type=ifelse(grepl("PCA_AC",feature),"Novel Motif","TF Motif")) %>%
+  filter(region_set!="All")
+
+novel_motifs <- background_values %>% filter(motif_type=="Novel Motif") %>%
+  arrange(desc(target_value)) %>% head(n=23)
+
+features_to_plot <- background_values %>% filter(motif_type!="Novel Motif") %>% rbind(novel_motifs)  %>%
+    separate_rows(background_values,sep=',') %>% mutate(background_values=as.numeric(background_values),
+                                                        feature=gsub("PCA_","",feature),
+                                                        region_set=ifelse(region_set=="Distal OCR", "Distal","Proxmial"))
+#7x4
+features_to_plot %>% filter(motif_type!="TF Motif") %>% 
+  ggplot(aes(x = background_values, y = fct_reorder(feature, target_value))) + 
+  geom_pointrange(data = features_to_plot %>% group_by(feature, region_set, motif_type) %>% 
+                    filter(motif_type!="TF Motif") %>% 
+                    summarise(min_value = min(background_values), max_value = max(background_values), mean_value = mean(background_values), .groups = 'drop'),aes(x = mean_value, y = feature, xmin = min_value, xmax = max_value), colour = 'grey60') + 
+  theme_bw() +
+  facet_wrap(. ~ motif_type, scale = 'free_y', 
+             labeller = label_wrap_gen(multi_line = FALSE)) +
+  scale_colour_manual(values = c('violetred3', 'dodgerblue4')) +
+  labs(colour = 'Regulatory Region Type') + 
+  xlab('Number of Genes') + 
+  ylab("Motif") +
+  geom_point(data = (features_to_plot %>% distinct(feature, region_set, target_value, motif_type) %>% 
+                       filter(motif_type!="TF Motif") %>% 
+                      group_by(motif_type) %>% 
+                      mutate(feature = fct_reorder(feature, target_value))), 
+             aes(x = target_value, y = feature, colour = region_set), size = 2) +
+  scale_x_continuous(limits = c(0, 22), breaks = seq(0, 22, by = 2)) +
+  #ggtitle("Number of Genes with an Enriched Motif") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        panel.grid.minor = element_blank(), 
+        legend.position = 'none')
+
+features_to_plot %>% filter(motif_type=="TF Motif") %>% 
+  ggplot(aes(x = background_values, y = fct_reorder(feature, target_value))) + 
+  geom_pointrange(data = features_to_plot %>% group_by(feature, region_set, motif_type) %>% 
+                    filter(motif_type=="TF Motif") %>% 
+                    summarise(min_value = min(background_values), max_value = max(background_values), mean_value = mean(background_values), .groups = 'drop'),aes(x = mean_value, y = feature, xmin = min_value, xmax = max_value), colour = 'grey60') + 
+  theme_bw() +
+  facet_wrap(. ~ motif_type, scale = 'free_y', 
+             labeller = label_wrap_gen(multi_line = FALSE)) +
+  scale_colour_manual(values = c('violetred3', 'dodgerblue4')) +
+  labs(colour = 'Regulatory Region Type') + 
+  xlab('Number of Genes') + 
+  ylab("Motif") +
+  geom_point(data = (features_to_plot %>% distinct(feature, region_set, target_value, motif_type) %>% 
+                       filter(motif_type=="TF Motif") %>% 
+                      group_by(motif_type) %>% 
+                      mutate(feature = fct_reorder(feature, target_value))), 
+             aes(x = target_value, y = feature, colour = region_set), size = 2) +
+  scale_x_continuous(limits = c(0, 22), breaks = seq(0, 22, by = 2)) +
+  #ggtitle("Number of Genes with an Enriched Motif") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        panel.grid.minor = element_blank(), 
+        legend.position = 'none')
+```

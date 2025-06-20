@@ -1,0 +1,114 @@
+---
+title: "ZOE4sigma_10k"
+output: 
+  pdf_document:
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(pheatmap)
+library(ggupset)
+library(tidyverse)
+processed_zoe_files <- readRDS('/projects/holtlab_prj/23_miniP/data/framework_runs/OCR0043SB/results_231010.processedcomotif.zoe.RDS')
+processed_izoe_files <- readRDS('/projects/holtlab_prj/23_miniP/data/framework_runs/OCR0046SB/results_231030.processedcomotif.izoe.RDS')
+zoe_significant_pairs <- processed_zoe_files$results %>% filter(region_set!='all') %>%  
+  mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific") 
+izoe_significant_pairs <- processed_izoe_files$results %>% filter(region_set!='all') %>%
+  mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="Bottom-Ranked") 
+
+#single motif results
+zoe_signifcant_motifs <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.significant.motifs.tsv') %>% filter(region_set!='all') %>% mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific")
+izoe_significant_motifs <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.significant.motifs.tsv') %>% filter(region_set!='all') %>%
+  mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"), gene_set="Bottom-Ranked") 
+```
+
+
+```{r co_heatmap}
+create_heatmap<- function(comotifs,singlemotifs,region){
+  m1m2 <- comotifs %>% filter(region_set==region,motif_type=='tfbs') %>% 
+    mutate(motif=feature) %>% separate(motif,into=c('m1','m2'),sep=';') %>% 
+    distinct(feature,m1,m2) %>% filter(m1!=m2) %>% 
+    unique() %>% mutate(co_occurs=1)
+  m2m1 <- comotifs %>% filter(region_set==region,motif_type=='tfbs') %>% 
+    mutate(motif=feature) %>% separate(motif,into=c('m2','m1'),sep=';') %>% 
+    distinct(feature,m1,m2) %>% filter(m1!=m2) %>% 
+    unique() %>% mutate(co_occurs=1) 
+  m1m1 <- comotifs %>% filter(region_set==region,motif_type=='tfbs') %>% 
+    mutate(motif=feature) %>% separate(motif,into=c('m1','m2'),sep=';') %>% 
+    distinct(feature,m1,m2) %>% 
+    mutate(m1=m2,co_occurs=0) %>% unique()
+  m2m2 <- comotifs %>% filter(region_set==region,motif_type=='tfbs') %>% 
+    mutate(motif=feature) %>% separate(motif,into=c('m2','m1'),sep=';') %>% 
+    distinct(feature,m1,m2) %>% 
+    mutate(m2=m1,co_occurs=0) %>% unique()
+  
+  motif_matrix_complex <- rbind(m1m1,m1m2)%>% rbind(m2m2) %>% rbind(m2m1) %>% 
+    mutate(co_2 = case_when(co_occurs==0 ~0,
+                            #m1 %in% singlemotifs$feature & m2 %in% singlemotifs$feature & co_occurs == 1 ~ 3,
+                            #now we only care if its enriched as a pair, not enriched as a pair, or if any number of the motifs are enriched in isolation
+                            m1 %in% singlemotifs$feature & m2 %in% singlemotifs$feature & co_occurs == 1 ~ 2,
+                            m1 %in% singlemotifs$feature | m2 %in% singlemotifs$feature & co_occurs== 1 ~2,
+                            TRUE ~ co_occurs)) %>% select(-co_occurs,-feature) %>% unique() %>%  
+    pivot_wider(names_from=m2,values_from=co_2,values_fill=0) %>% column_to_rownames(var='m1')
+  return(motif_matrix_complex)
+}
+# Step 1: Generate your matrix
+mat <- create_heatmap(zoe_significant_pairs, zoe_signifcant_motifs %>% filter(region_set=="Distal"), "Distal")
+
+# Step 2: Perform clustering and extract row/column order
+ph <- pheatmap(mat, cluster_rows = TRUE, cluster_cols = TRUE, silent = TRUE)
+row_order <- ph$tree_row$order
+col_order <- ph$tree_col$order
+
+# Step 3: Reorder the matrix manually
+mat_ordered <- mat[row_order, col_order]
+
+# Step 4: Mask the upper triangle AFTER reordering
+mat_ordered[upper.tri(mat_ordered)] <- NA
+
+# Step 5: Plot the heatmap without clustering again
+pheatmap(mat_ordered,
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         fontsize_row = 4, fontsize_col = 4,
+         color = c("#fff7f3", '#ae017e',"#f768a1"),
+         show_rownames = TRUE, show_colnames = TRUE,
+         na_col = "white")
+
+
+```
+
+Figure 3A&C
+```{r upset}
+shared_tfbs <- rbind(processed_zoe_files$results %>% filter(motif_type=='tfbs',region_set!='all') %>% 
+                       mutate(gene_set="T-cell-specific"),processed_izoe_files$results %>% 
+                       filter(motif_type=='tfbs',region_set!='all') %>% mutate(gene_set="Bottom Ranked")) %>%
+  group_by(region_set,feature) %>% summarise(gene_set=list(gene_set)) %>% ungroup() %>%
+  mutate(region_set=ifelse(region_set=="promoter","Proximal","Distal"))
+shared_novel <- rbind(processed_zoe_files$results %>% filter(motif_type=='both',region_set!='all') %>% 
+                       mutate(gene_set="T-cell-specific"),processed_izoe_files$results %>% 
+                       filter(motif_type=='both',region_set!='all') %>% mutate(gene_set="Bottom Ranked")) %>%
+  group_by(region_set,feature) %>% summarise(gene_set=list(gene_set)) %>% ungroup() %>%
+  mutate(region_set=ifelse(region_set=="promoter","Proximal","Distal"))
+
+shared_tfbs %>% ggplot(aes(x=gene_set,fill=region_set))+
+  geom_bar()+
+  facet_wrap(region_set~.,scales='free')+
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-1)+ 
+  scale_x_upset() +labs(fill='Regulatory Element Type') +xlab('Gene Set')+ ylab("Number of Enriched Motif Pairs")+
+  scale_fill_manual(values=c('violetred3','dodgerblue4'))+ theme_bw() +  
+ # ggtitle("Enriched Novel Motifs")+ 
+  theme(plot.title=element_text(hjust=0.5),
+        legend.position='bottom')
+
+shared_novel %>% ggplot(aes(x=gene_set,fill=region_set))+
+  geom_bar()+
+  facet_wrap(region_set~.,scales='free')+
+  geom_text(stat='count', aes(label=after_stat(count)), vjust=-1)+ 
+  scale_x_upset() +labs(fill='Regulatory Element Type') +xlab('Gene Set')+ ylab("Number of Enriched Motif Pairs")+
+  scale_fill_manual(values=c('violetred3','dodgerblue4'))+ theme_bw() +  
+ # ggtitle("Enriched Novel Motifs")+ 
+  theme(plot.title=element_text(hjust=0.5),
+        legend.position='bottom')
+```

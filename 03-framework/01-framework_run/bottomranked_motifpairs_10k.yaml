@@ -2,6 +2,8 @@ GENOME_REF: "/projects/sbrown_prj/220318_DI/data/raw/ref/GRCh37.p13.genome.fa"
 ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/framework_env.yaml"
 OCRMETRICS_DATA_DIR: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/ocrs/iZoE_motifs"
 EXCL_REGIONS_BED_FILE: "/projects/nknoetze_prj/references/annotations/ucsc/hg19.centromere.telomere.bed"
+CHROM_SIZES: "/projects/sbrown_prj/220318_DI/data/raw/ref/GRCh37.p13.genome.chrom.sizes.canonical.txt"
+GENOME_BED_FILE: "/projects/sbrown_prj/220318_DI/data/raw/ref/GRCh37.p13.genome.bed"
 
 TARGET_GENES: "/projects/sbrown_prj/220318_DI/data/interim/tcell_gene_lists/iZoE_4sig_target_genes_231006.txt"
 BACKGROUND_GENES: "/projects/sbrown_prj/220318_DI/data/interim/tcell_gene_lists/iZoE_3sig_background_genes_231006.txt"

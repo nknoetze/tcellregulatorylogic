@@ -13,7 +13,7 @@ ALL_GENES: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/ocrs/ranked_g
 NUM_ITER: 10000
 CORES: 32
 
-FUNCTIONS: "fimo_comotif_geneCount_shuffling fimo_geneCount_shuffling"
+FUNCTIONS: "fimo_geneCount_shuffling"
 
 RMSK_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/rmsk.txt"
 JASPAR_DATA: "/projects/sbrown_prj/sbrown_scratch/220318_DI/data/raw/JASPAR2022_hg19.bed"

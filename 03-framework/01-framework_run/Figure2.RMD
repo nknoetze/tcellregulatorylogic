@@ -34,13 +34,11 @@ tcell_expressed_tfs <- fread('/projects/nknoetze_prj/references/annotations/tf_f
 
 zoe_results <- '/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.tsv'
 izoe_results <- '/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.tsv'
-zoe_feature_locations_dir <- "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/"
-izoe_feature_locations_dir <- "/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/"
 ```
 
 
 ```{r function}
-process_data <- function(results_file, expression_file,tcell_expressed_tf_file,feature_location_dir){
+process_data <- function(results_file, expression_file,tcell_expressed_tf_file){
   tcells <- tcells <- c('cd4_naive','cd8_naive','th17','th1-17','th1','tfh','th2','treg_memory','treg_naive','cd4_n_stim','cd8_n_stim')
   #filter results for fc >2 and p value < 0.05.
   results_df <- fread(results_file, nThread=48) %>% 
@@ -87,21 +85,12 @@ process_data <- function(results_file, expression_file,tcell_expressed_tf_file,f
   #if novel motif, just get significant results.
   significant_motifs_df <- results_df %>% 
     filter(feature_region %in% expressed_motifs_df$feature_region | feature_region %in% results_df$feature_region & motif_type=="Novel Motif")
-  
-  ####### HEATMAPS PROCESSING
-  feature_location_files <- list.files(feature_location_dir,pattern='fimo_geneCount.*RAW.featureLocations.tsv$',full.names = TRUE)
-  names(feature_location_files) <- basename(feature_location_files) %>% sub(".*\\+(.*?)\\.RAW.*", "\\1", .)
-  feature_locations_df <- map_dfr(feature_location_files,fread,.id='region_set') %>% filter(!is.na(score)) %>%
-    mutate(feature_region=case_when(region_set=='promoter' ~ paste('p',str_to_upper(feature),sep=''),
-                                    region_set=='non-promoter' ~ paste('np',str_to_upper(feature),sep=''),
-                                    TRUE ~ paste('a',str_to_upper(feature),sep='')),
-           motif_type=ifelse(grepl("PCA_AC",feature),"Novel Motif","Known Motif"))
-  
-  return(list(expressed_motifs = expressed_motifs_df, significant_motifs=significant_motifs_df,feature_locations=feature_locations_df)) 
+
+  return(list(expressed_motifs = expressed_motifs_df, significant_motifs=significant_motifs_df)) 
 }
 
-processed_zoe_files <- process_data(zoe_results,expression_file=gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs,feature_location_dir = zoe_feature_locations_dir)
-processed_izoe_files <- process_data(izoe_results,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs,feature_location_dir = izoe_feature_locations_dir)
+processed_zoe_files <- process_data(zoe_results,expression_file=gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs)
+processed_izoe_files <- process_data(izoe_results,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs)
 ```
 
 #### Figure 2B&D

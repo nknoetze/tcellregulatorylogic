@@ -5,7 +5,7 @@ CONDA_ENV: /projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/framework_env.yaml
 # -------------------------------------------------------------------#
 # DIRECTORY CONFIG
 # -------------------------------------------------------------------#
-OUTDIR: /projects/sbrown_prj/220318_DI/data/processed/oligolibrary
+OUTDIR: /projects/nknoetze_prj/ocr_prj/test_library
 # -------------------------------------------------------------------#
 # PARAM VARIABLES
 # -------------------------------------------------------------------#
@@ -17,8 +17,8 @@ MOTIF_ARCHETYPES: "/projects/nknoetze_prj/ocr_prj/data/raw/motif_archetypes/meta
 N_CORES: 56
 NUM_CANDIDATES: 3
 CANDIDATE_GAP: 10
-NEUTRAL_SEQ: ["/projects/sbrown_prj/220318_DI/data/processed/wetlab/controls/synthetic_inert_1_TWISTORDER_insertonly.fasta"]
-OUTPUT_FILE_NAME: ["syn1"]
+MOTIFS: "/projects/sbrown_prj/220318_DI/data/interim/motifs/JASPAR+novel+histone_motifs.meme"
+OUTPUT_FILE_NAME: ["synthetic1"]
 PAD_RE_5: "CTTCTATCTAGCACCGGT"
 RE_PAD_3: "GTCGACGATGTAGGTACT"
 ADAPTOR_5: "ACACTCTTTCCCTACACGACGCTCTTCCGATCT"
@@ -28,5 +28,3 @@ FORIBIDDEN_SEQS: "ACCGGT GTCGAC"
 
 CONTROL_SEQ: "/projects/nknoetze_prj/ocr_prj/data/processed/wetlab_controls/agarwal_ahituv_2023biorx/k562_control_seqs/fasta_files/seq1305+strong.fa"
 TILE_LENGTH: 88
-
-NUM_COMBOS: 16884

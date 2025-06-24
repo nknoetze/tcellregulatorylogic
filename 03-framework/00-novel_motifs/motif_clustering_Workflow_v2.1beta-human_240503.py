@@ -112,7 +112,7 @@ if __name__ == "__main__":
     motif_annot_df = pd.DataFrame({'motif_id':sim.index, 'cluster':cl}).set_index('motif_id')
     motif_annot_df['cluster'] = 'AC' + motif_annot_df['cluster'].astype(str).str.zfill(4)
     motif_annot_df.head()
-
+    print(motif_annot_df)
 
     def relative_info_content(pwm):
         p = pwm/np.sum(pwm, axis = 1)[:,np.newaxis]
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         import matplotlib.pyplot as plt
         import matplotlib.gridspec as mgridspec
         
-        from genome_tools.plotting import sequence
+        #from genome_tools.plotting import sequence
         
 
         motifs = df.index
@@ -297,7 +297,7 @@ if __name__ == "__main__":
         # gs = mgridspec.GridSpec(n+1, 1)
         
         for i, row in alignment_df.iterrows():
-            ax = fig.add_subplot(gs[i+1, :])
+            #ax = fig.add_subplot(gs[i+1, :])
             
             motif_id = row['motif']
             rc = row['strand'] == '-'

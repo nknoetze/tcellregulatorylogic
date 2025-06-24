@@ -90,7 +90,6 @@ rule generate_library:
         library = "{outdir}/wetlab/bg-{output_file_name}.{nnovel}novel_{ntfbs}tfbs.oligolibrary.fa"
     shell:
         "python {params.script} --candidates {input.fasta} --neutral_seq {input.neutral_seq} --pad_re_5 {params.pad_re_5} --re_pad_3 {params.re_pad_3} --adaptor_5 {params.adaptor_5} --adaptor_3 {params.adaptor_3} --num_candidates {params.num_candidates} --candidate_gap {params.candidate_gap} --forbidden_seqs {params.forbidden_seqs} --spacer --output {output.library}"
-        # "python {params.script} --candidates {input.fasta} --neutral_seq {params.neutral_seq} --pad_re_5 {params.pad_re_5} --re_pad_3 {params.re_pad_3} --adaptor_5 {params.adaptor_5} --adaptor_3 {params.adaptor_3} --num_candidates {params.num_candidates} --candidate_gap {params.candidate_gap} --forbidden_seqs {params.forbidden_seqs} --spacer --output {output.library}"
 
 # --------------------------------------------------------------
 # CREATE TILED SEQUENCE CONTROL

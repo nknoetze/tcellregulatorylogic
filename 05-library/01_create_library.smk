@@ -78,7 +78,6 @@ rule generate_library:
     conda: conda_env
     params:
         script="/projects/nknoetze_prj/ocr_prj/test_library/oligo_designer.py",
-       # neutral_seq = lambda wildcards: neutral_seqs[wildcards.output_file_name],
         pad_re_5=pad_re_5,
         re_pad_3=re_pad_3,
         adaptor_5=adaptor_5,

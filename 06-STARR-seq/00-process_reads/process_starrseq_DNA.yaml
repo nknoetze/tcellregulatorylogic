@@ -7,7 +7,7 @@ MAPPING_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/envs
 DATAMASH_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/envs/datamash.yaml"
 UMI_COLLAPSING_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/envs/umi_collapsing.yaml"
 SEQ_READS_DIR: "/projects/holtlab_prj/23_miniP/data/raw/STARRseq/DNA/30-961947925/00_fastq"
-OLIGO_LIBRARY_INDEX: "/projects/holtlab_prj/23_miniP/data/library/complete.9novel_9tfbs.oligolibrary.inserts.index"
+OLIGO_LIBRARY_INDEX: "/projects/nknoetze_prj/ocr_prj/test_library/wetlab/complete.9novel_9tfbs.oligolibrary.index"
 
 # -------------------------------------------------------------------#
 # DIRECTORY CONFIG

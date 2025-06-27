@@ -18,14 +18,12 @@ mapping_env=config['MAPPING_ENV']
 umi_collapsing_env=config['UMI_COLLAPSING_ENV']
 datamash_env=config['DATAMASH_ENV']
 library_names=config['LIBRARY_NAMES']
-MM_thresholds=config['MM_THRESHOLDS']
-umi_MMs=config['UMI_MM']
 # --------------------------------------------------------------
 # SET RULE ALL
 # --------------------------------------------------------------
 rule all:
     input:
-        expand(f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch{MM_threshold}.counts.{umi_MM}.tsv",library_name=library_names,method=method,MM_threshold=MM_thresholds)
+        expand(f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch0.counts.0.tsv",library_name=library_names)
     
 # --------------------------------------------------------------
 # EXTRACT UMI
@@ -97,7 +95,7 @@ rule filter_alignments:
     params:
         MM_threshold=0
     output:
-        temp(f"{scratch_outdir}""/02-mapped_reads/temp.DNA{library_name}.mismatch{MM_threshold}.bam")
+        temp(f"{scratch_outdir}""/02-mapped_reads/temp.DNA{library_name}.mismatch0.bam")
     shell:
          """
         tmp_files=""
@@ -113,11 +111,11 @@ rule filter_alignments:
         
 rule fixmates:
     input:
-        f"{scratch_outdir}""/02-mapped_reads/temp.DNA{library_name}.mismatch{MM_threshold}.bam"
+        f"{scratch_outdir}""/02-mapped_reads/temp.DNA{library_name}.mismatch0.bam"
     conda: mapping_env
     threads: 24
     output:
-        temp(f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch{MM_threshold}.bam")
+        temp(f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch0.bam")
     shell:
         "samtools sort -@ {threads} -n {input} | samtools fixmate -@ {threads} - {output}"
 
@@ -127,11 +125,11 @@ rule filter_alignments2:
 #only keep the fwd read to reduce file size for processing (-f 64)
 #Flag=66
     input:
-        f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch{MM_threshold}.bam"
+        f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch0.bam"
     conda: mapping_env
     threads: 24
     output:
-        f"{outdir}""/02-mapped_reads/DNA{library_name}.mismatch{MM_threshold}.bam"
+        f"{outdir}""/02-mapped_reads/DNA{library_name}.mismatch0.bam"
     shell:
         "samtools view -@ {threads} -f 66 -b {input} > {output}"
 
@@ -142,21 +140,21 @@ rule filter_alignments2:
 #only keep read name_UMI, candidate, and candidate_seq_len for processing to reduce file size.
 rule bam_to_tsv:
     input:
-        f"{outdir}""/02-mapped_reads/DNA{library_name}.mismatch{MM_threshold}.bam"
+        f"{outdir}""/02-mapped_reads/DNA{library_name}.mismatch0.bam"
     conda: mapping_env
     threads: 24
     output:
-        f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch{MM_threshold}.tsv"
+        f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch0.tsv"
     shell:
         """samtools view -@ {threads} {input} | cut -f 1,3 | awk '{{if (substr($1, length($1)-9, 10) !~ /N/) print}}'> {output}"""
 
 rule create_UMI_bed:
     input:
-        f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch{MM_threshold}.tsv"
+        f"{scratch_outdir}""/02-mapped_reads/DNA{library_name}.mismatch0.tsv"
     params:
         script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/create_UMI_bed.py"
     output:
-        f"{scratch_outdir}""/03-UMI_counts/DNA{library_name}.mismatch{MM_threshold}.UMI.bed"
+        f"{scratch_outdir}""/03-UMI_counts/DNA{library_name}.mismatch0.UMI.bed"
     shell:
         "python {params.script} --SAM_file {input} --outfile {output}"
 
@@ -165,12 +163,12 @@ rule create_UMI_bed:
 #--------------------------------------------------------------
 rule get_counts:
     input:
-        f"{scratch_outdir}""/03-UMI_counts/DNA{library_name}.mismatch{MM_threshold}.UMI.bed"
+        f"{scratch_outdir}""/03-UMI_counts/DNA{library_name}.mismatch0.UMI.bed"
     conda: umi_collapsing_env
     params: 
         script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/collapse_UMI.py",
-        umi_MM="{umi_MM}"
+        umi_MM=0
     output:
-        f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch{MM_threshold}.counts.{umi_MM}.tsv"
+        f"{outdir}""/03-candidate_counts/DNA{library_name}.mismatch0.counts.0.tsv"
     shell:
         "python {params.script} --UMI_bedfile {input} --mm_threshold {params.umi_MM} --outfile {output}"

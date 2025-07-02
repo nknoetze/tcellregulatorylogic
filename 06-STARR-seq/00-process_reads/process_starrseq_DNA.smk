@@ -30,8 +30,8 @@ rule all:
 # --------------------------------------------------------------
 rule extract_UMI:
     input:
-        R1=f"{seq_reads_dir}""/{library_name}_R1_001.fastq.gz",
-        R2=f"{seq_reads_dir}""/{library_name}_R2_001.fastq.gz"
+        R1=f"{seq_reads_dir}""/{library_name}_1.fastq.gz",
+        R2=f"{seq_reads_dir}""/{library_name}_2.fastq.gz"
     conda: umitools_env
     log: f"{outdir}""/01-trimmed-fastq/logs/DNA{library_name}_umi_extract_log.txt"
     output:

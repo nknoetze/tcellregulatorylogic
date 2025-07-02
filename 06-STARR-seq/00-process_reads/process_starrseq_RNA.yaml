@@ -5,17 +5,15 @@ CUTADAPT_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/env
 MAPPING_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/envs/bowtie2.yaml"
 UMI_COLLAPSING_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/envs/umi_collapsing.yaml"
 DATAMASH_ENV: "/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/umi_starrseq/envs/datamash.yaml"
-SEQ_READS_DIR: "/projects/nknoetze_prj/ocr_prj/test_RNA"
-OLIGO_LIBRARY_INDEX: "/projects/nknoetze_prj/ocr_prj/test_library/wetlab/complete.9novel_9tfbs.oligolibrary.index"
+SEQ_READS_DIR: "/projects/nknoetze_prj/ocr_prj/data/raw/STARRseq/GEO/RNA"
+OLIGO_LIBRARY_INDEX: "/projects/nknoetze_prj/ocr_prj/results/test_library/wetlab/complete.9novel_9tfbs.oligolibrary.index"
 # -------------------------------------------------------------------#
 # DIRECTORY CONFIG
 # -------------------------------------------------------------------#
-SEQ_READS_OUTDIR: "/projects/nknoetze_prj/ocr_prj/test_RNA"
-OUTPUT_DIR: "/projects/nknoetze_prj/ocr_prj/test_RNA"
-SCRATCH_OUTPUT_DIR: "/projects/nknoetze_prj/nknoetze_scratch/ocr_prj/test_RNA"
+SEQ_READS_OUTDIR: "/projects/nknoetze_prj/ocr_prj/results/test_run/RNA"
+OUTPUT_DIR: "/projects/nknoetze_prj/ocr_prj/results/test_run/RNA"
+SCRATCH_OUTPUT_DIR: "/projects/nknoetze_prj/scratch/ocr_prj/results/test_run/RNA"
 # -------------------------------------------------------------------#
 # PARAM VARIABLES
 # -------------------------------------------------------------------#
-# CELL_LINE: ["Jurkat"]
-# REPLICATE: ["1"]
 SAMPLE: ["Jurkat_RNA1","Jurkat_RNA2","Jurkat_RNA3","K562_RNA1","K562_RNA2","K562_RNA3"]

@@ -14,18 +14,18 @@ parse_file <- function(RNA_file_path,DNA_file_path,regex){
                            ~fread(.x,sep='\t',col.names=c('candidate','count')), .id = 'sample_id',nThread=48)
   
   df <- full_join(raw_DNA_count,raw_RNA_count) %>%
-    mutate(candidate=gsub('synthetic_inert_1','synthetic',candidate),
+    mutate(candidate=gsub('synthetic_seq','synthetic',candidate),
            candidate=gsub('seq1305\\(\\+\\);strong','strong',candidate),
            candidate=gsub("ATF2\\|FOSB::JUN\\|FOSL1::JUND\\|JUN::JUNB\\|ATF3","FOSB::JUN",candidate),
            candidate=gsub("FOSL1::JUNB\\|FOS::JUNB\\|FOS::JUND\\|BATF\\|BATF::JUN\\|FOSL1::JUND\\|JUN::JUNB", "BATF::JUN",candidate))
   return(df)
 }
 ####### DEDUP COUNTS
-dedup_counts <- parse_file(RNA_file_path="/projects/holtlab_prj/23_miniP/data/processed/STARRseq/RNA/02-candidate_counts",
-                           DNA_file_path = "/projects/holtlab_prj/23_miniP/data/processed/STARRseq/DNA/30-961947925/03-candidate_counts",
+dedup_counts <- parse_file(RNA_file_path="/projects/nknoetze_prj/ocr_prj/results/test_run/RNA/02-candidate_counts",
+                           DNA_file_path = "/projects/nknoetze_prj/ocr_prj/results/test_run/DNA/03-candidate_counts",
                            regex='.mismatch0.counts.0.tsv$')
 
-dedup <- dedup_counts %>% filter(grepl("synthetic|strong",candidate)) %>% 
+dedup <- dedup_counts %>% filter(grepl("synthetic|strong",candidate)) %>%
   mutate(sample_id=paste(sample_id,"_deduplicated",sep='')) %>% pivot_wider(names_from=sample_id,values_from=count) %>%
   mutate(Jurkat_RNA123_deduplicated_mean = apply(across(starts_with("Jurkat_RNA")), 1,function(x) mean(x[x > 0], na.rm = TRUE)),
          Jurkat_RNA123_deduplicated_median = apply(across(starts_with("Jurkat_RNA")), 1, function(x) median(x[x > 0], na.rm = TRUE)),
@@ -48,6 +48,9 @@ cpm <- dedup_counts %>% filter(grepl("synthetic|strong",candidate)) %>%
   mutate(sample_id=paste(sample_id,"_cpm",sep='')) %>% 
   group_by(sample_id) %>% mutate(library_size=sum(count)) %>% ungroup() %>%
   mutate(cpm=((count)/(library_size))*1000000)
+
+cpm_library_sizes <- cpm %>% filter(grepl("synthetic|strong",candidate)) %>% distinct(candidate,library_size,sample_id) %>%
+  pivot_wider(names_from=sample_id,values_from=library_size,names_prefix="libsize_")
 
 cpm_df <- cpm %>% select(-count,-library_size) %>% unique() %>% 
   pivot_wider(names_from=sample_id,values_from=cpm) %>% 
@@ -76,13 +79,7 @@ log2fc <- cpm_df %>%
   #only calculate log2fc for oligos where there are at least two replicates for a given cell type.
   rowwise() %>%
   mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>%
-  filter(num_na < 2) %>% select(-num_na) %>% 
-  group_by(candidate,cell) %>% 
-  #calculate summaries
-  mutate(RNA123_log2fc_mean=mean(c(RNA1_log2fc,RNA2_log2fc,RNA3_log2fc),na.rm = TRUE),
-         RNA123_log2fc_median=median(c(RNA1_log2fc,RNA2_log2fc,RNA3_log2fc),na.rm = TRUE),
-         RNA123_log2fc_sd=sd(c(RNA1_log2fc,RNA2_log2fc,RNA3_log2fc),na.rm = TRUE),
-         RNA123_log2fc_cv=(RNA123_log2fc_sd/RNA123_log2fc_mean)) %>% ungroup()
+  filter(num_na < 2) %>% select(-num_na) 
 
 background_log2fc <- log2fc %>%
   transmute(candidate,'RNA1_background'=RNA1_log2fc,'RNA2_background'=RNA2_log2fc,'RNA3_background'=RNA3_log2fc, cell) %>%
@@ -100,7 +97,7 @@ log2fc_w_background <- log2fc %>% filter(!grepl('spacer-spacer-spacer',candidate
   select(-RNA1_background,-RNA2_background,-RNA3_background) %>%
   full_join(log2fc %>% filter(grepl('spacer-spacer-spacer',candidate)))
 
-full_df <- full_join(dedup,log2fc_w_background) %>% 
+full_df <- full_join(dedup,cpm_library_sizes) %>% full_join(log2fc_w_background) %>%
   separate(candidate,into=c('oligo','background'),sep='\\.') %>%
   separate(oligo,into=c('m1','m2','m3'),sep='-',remove=FALSE) %>% 
   mutate(m1_orientation=ifelse(grepl("revc",m1),"rev","fwd"),
@@ -108,26 +105,32 @@ full_df <- full_join(dedup,log2fc_w_background) %>%
          m3_orientation=ifelse(grepl("revc",m3),"rev","fwd"),
          m1=gsub("revc","",m1),
          m2=gsub("revc","",m2),
-         m3=gsub("revc","",m3)) %>%
+         m3=gsub("revc","",m3),
+         m1_tmp=ifelse(m1=='spacer',m1,paste(m1,m1_orientation,sep='')),
+         m2_tmp=ifelse(m2=='spacer',m2,paste(m2,m2_orientation,sep='')),
+         m3_tmp=ifelse(m3=='spacer',m3,paste(m3,m3_orientation,sep='')),
+         oligo=paste(m1_tmp,m2_tmp,m3_tmp,sep='-')) %>%
+  select(-m1_tmp,-m2_tmp,-m3_tmp) %>% 
   mutate(across(where(is.numeric), ~ round(., 4)))
 df1 <- full_df %>% select(oligo,m1,m1_orientation,m2,m2_orientation,m3,m3_orientation,background,cell)
 df2 <- full_df %>% select(-oligo,-m1,-m1_orientation,-m2,-m2_orientation,-m3,-m3_orientation,-background,-cell)
 final <- cbind(df1,df2)
 
 
-
 #MAKE SURE FILES ONLY CONTAINS OLIGOS WITH LOG2FC FOR 2+ REPLICATES FOR A GIVEN CELL TYPE
-fwrite(final,'/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.reduced.tsv',sep='\t',quote=FALSE)  
-monotypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
-  pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
-  filter(n_distinct(value)==1) %>% ungroup()
-final %>% filter(oligo %in% monotypic$oligo| oligo=="spacer-spacer-spacer",background!='random',background!='strong') %>%
- rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
- fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.monotypic.reduced.tsv',sep='\t',quote=FALSE)
-
-ditypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
-  pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
-  filter(n_distinct(value)==2) %>% ungroup()
-final %>% filter(oligo %in% ditypic$oligo| oligo=="spacer-spacer-spacer",background!='random',background!="strong") %>%
- rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
- fwrite('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.reduced.tsv',sep='\t',quote=FALSE)
+fwrite(final,'/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.file.tsv',sep='\t',quote=FALSE)  
+# monotypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
+#   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
+#   filter(n_distinct(value)==1) %>% ungroup()
+# final %>% filter(oligo %in% monotypic$oligo| oligo=="spacer-spacer-spacer",background!='random',background!='strong') %>%
+#   rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
+#   fwrite('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.monotypic.file.tsv',sep='\t',quote=FALSE)
+# 
+# 
+# 
+# ditypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
+#   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
+#   filter(n_distinct(value)==2) %>% ungroup()
+# final %>% filter(oligo %in% ditypic$oligo| oligo=="spacer-spacer-spacer",background!='random',background!="strong") %>%
+#   rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% select(-num_na) %>%
+#   fwrite('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.ditypic.file.tsv',sep='\t',quote=FALSE)

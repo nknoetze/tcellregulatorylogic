@@ -1,0 +1,144 @@
+---
+title: "T test Results"
+output: 
+  html_document:
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+options(bitmapType='cairo')
+library(data.table)
+library(tidyverse)
+library(ggrepel)
+library(tidytext)
+
+monotypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/monotypic.results.tsv')
+monotypic_stats <- monotypic_results %>% distinct(cell,motif,orientation,signif,motif_cohens,p_value)
+
+```
+
+Figure 4B&C
+```{r barcharts,fig.width=12,fig.height=6}
+monotypic_results  %>% filter(cell=="Jurkat")%>%
+  distinct(cell,motif,orientation,signif,se_with_motif,se_without_motif,mean_log2fc_with_motif,mean_log2fc_without_motif,group) %>%
+  mutate(motif_type=ifelse(grepl("PCA_AC",motif),"Novel Motif","TFBS"),motif=gsub("PCA_","",motif)) %>% 
+  ggplot(aes(x=reorder_within(paste(motif,orientation,sep=''), mean_log2fc_with_motif, cell),
+             y=mean_log2fc_with_motif,fill=interaction(cell,signif),colour=interaction(cell,signif)))+
+  geom_bar(position='dodge',stat='identity')+
+  geom_errorbar(aes(ymin = mean_log2fc_with_motif - se_with_motif, 
+                    ymax = mean_log2fc_with_motif + se_with_motif),
+                position = position_dodge(width = 0.8), width = 0.25,color="grey60") + 
+  theme_bw()+
+  scale_x_reordered()+
+  facet_grid(.~motif_type,scales='free')+
+  scale_colour_manual(values=c('#8cb6c3','#8cb6c3'))+
+  scale_fill_manual(values=c('white','#8cb6c3'))+
+  theme(axis.text.x = element_text(angle=90,vjust=1,hjust=1),
+        legend.position = 'none')+
+  xlab("")+
+  xlab("")+ylab("Mean Adjusted Log2FC")+
+  labs(fill="Significance",shape="Significance",colour="Significance")
+
+monotypic_results  %>% filter(cell=="K562")%>%
+  distinct(cell,motif,orientation,signif,se_with_motif,se_without_motif,mean_log2fc_with_motif,mean_log2fc_without_motif,group) %>%
+  mutate(motif_type=ifelse(grepl("PCA_AC",motif),"Novel Motif","TFBS"),motif=gsub("PCA_","",motif)) %>% 
+  ggplot(aes(x=reorder_within(paste(motif,orientation,sep=''), mean_log2fc_with_motif, cell),
+             y=mean_log2fc_with_motif,fill=interaction(cell,signif),colour=interaction(cell,signif)))+
+  geom_bar(position='dodge',stat='identity')+
+  geom_errorbar(aes(ymin = mean_log2fc_with_motif - se_with_motif, 
+                    ymax = mean_log2fc_with_motif + se_with_motif),
+                position = position_dodge(width = 0.8), width = 0.25,color="grey60") + 
+  theme_bw()+
+  scale_x_reordered()+
+  facet_grid(.~motif_type,scales='free')+
+  scale_colour_manual(values=c('#e2cc3f','#e2cc3f'))+
+  scale_fill_manual(values=c('white','#e2cc3f'))+
+  theme(axis.text.x = element_text(angle=90,vjust=1,hjust=1),
+        legend.position = 'none')+
+  xlab("")+ylab("Mean Adjusted Log2FC")+
+  labs(fill="Significance",shape="Significance",colour="Significance")
+```
+
+
+Copy Number analysis
+```{r copy_number_analysis, fig.width=15, fig.height=5}
+#list of significant motifs for copy number analysis
+signif_motifs <- monotypic_results %>% filter(signif=="Significant",cell=="Jurkat") %>% distinct(motif_orientation)
+
+#get copy number for each motif in each oligo
+copynumber_df <- monotypic_results %>% 
+  distinct(cell,oligo) %>%
+  mutate(motif=oligo) %>% separate_rows(motif,sep='-') %>%
+  filter(motif!="spacer") %>%
+  group_by(cell,oligo,motif) %>% mutate(copy_number=n()) %>% ungroup() %>%
+  distinct(cell,oligo,motif,copy_number)  %>% 
+  left_join(monotypic_results %>% mutate(motif=paste(motif,orientation,sep='')) %>% 
+              select(-orientation),by=c('oligo'='oligo','cell'='cell','motif'='motif')) %>%
+  filter(!is.na(log2fc))
+
+
+
+##### Perform analysis for each motif and cell type.
+copynumber_stats <- copynumber_df %>% filter(motif %in% signif_motifs$motif_orientation) %>% 
+    group_by(cell, motif) %>%
+    summarize(model = list(lm(log2fc ~ copy_number)),
+              p_value = summary(model[[1]])$coefficients[2, 4],
+              r_squared = summary(model[[1]])$r.squared) %>%
+    ungroup() %>%
+    select(-model) %>%
+    mutate(group=ifelse(p_value < 0.05/nrow(signif_motifs),"Significant","Not Significant"))
+```
+
+Figure 4D&E
+```{r copy_number, fig.width=15, fig.height=5}
+copynumber_df %>% 
+  filter(cell=="Jurkat") %>% 
+  select(oligo,motif,copy_number,log2fc,cell)  %>% 
+  inner_join(copynumber_stats, by = c("motif", "cell")) %>%
+  mutate(motif=gsub("PCA_","",motif),
+         motif = fct_reorder(motif, p_value)) %>% 
+  ggplot(aes(x = as.character(copy_number), y = log2fc)) +
+  facet_wrap(motif~., scales = 'free_x', ncol = 9) +  # Reorder facets by motif_type 
+  geom_boxplot(aes(fill = group,colour=group),outlier.shape=NA) + 
+  ggbeeswarm::geom_quasirandom(size = 0.25, alpha = 0.3) + 
+  geom_smooth(aes(x=copy_number,y=log2fc,colour=group),method = "lm", se = FALSE,linewidth=0.5) +
+  theme_bw() + 
+  xlab("Copy Number") + 
+  ylab("Activity Score")+
+  labs(colour='Group',fill='Group')+
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = 'bottom',
+        strip.text.x = element_text(size = 7))+
+  geom_text(data = (copynumber_stats %>% filter(cell=='Jurkat',group=="Significant") %>% mutate(motif=gsub("PCA_","",motif))), 
+            aes(label = paste("p =", round(p_value, 3), "\nR² =", round(r_squared, 3))),
+            x = Inf, y = Inf, hjust = 1.1, vjust = 1.1, color = "black", size = 3)+
+  scale_fill_manual(values=c('white','#8cb6c3'))+
+  scale_colour_manual(values=c('#8cb6c3','black'))
+
+copynumber_df %>% 
+  filter(cell=="K562") %>% 
+  select(oligo,motif,copy_number,log2fc,cell)  %>% 
+  inner_join(copynumber_stats, by = c("motif", "cell")) %>%
+  mutate(motif=gsub("PCA_","",motif)) %>% 
+  ggplot(aes(x = as.character(copy_number), y = log2fc)) +
+  facet_wrap(motif~., scales = 'free_x', ncol = 9) +
+  geom_boxplot(aes(fill = group,colour=group),outlier.shape=NA) + 
+  ggbeeswarm::geom_quasirandom(size = 0.25, alpha = 0.3) + 
+  geom_smooth(aes(x=copy_number,y=log2fc,colour=group),method = "lm", se = FALSE,linewidth=0.5) +
+  theme_bw() + 
+  xlab("Copy Number") + 
+  ylab("Activity Score")+
+  labs(colour='Group',fill='Group')+
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = 'bottom',
+        strip.text.x = element_text(size = 7))+
+  geom_text(data = (copynumber_stats %>% filter(cell=='K562',group=="Significant") %>% mutate(motif=gsub("PCA_","",motif))), 
+            aes(label = paste("p =", round(p_value, 3), "\nR² =", round(r_squared, 3))),
+            x = Inf, y = Inf, hjust = 1.1, vjust = 1.1, color = "black", size = 3)+
+  scale_fill_manual(values=c('white','#e2cc3f'))+
+  scale_colour_manual(values=c('#e2cc3f','black'))
+```

@@ -1,0 +1,162 @@
+---
+title: "Ditypic T test Results"
+output: 
+  html_document:
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(tidyverse)
+library(ggrepel)
+library(pheatmap)
+library(ggh4x)
+library(ggpubr)
+
+ditypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/ditypic.results.tsv') %>%
+  mutate(Significance=case_when(pair_signif=="Not Significant" ~ "No Effect",
+                                pair_signif=="Significant" & interaction_signif=="Potential Interaction" & synergistic=="Synergistic" ~"Synergistic",
+                                pair_signif=="Significant" & interaction_signif=="Potential Interaction"& synergistic!="Synergistic" ~ "No Synergy",
+                                pair_signif=="Significant" & interaction_signif=="No Interaction" ~ "No Synergy",
+                                TRUE ~ "PICKLE"))
+
+monotypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/monotypic.results.tsv') 
+sig_motifs <- monotypic_results %>% filter(cell=="Jurkat",signif=="Significant") %>% unique()
+```
+
+
+Figure 5A
+```{r heatmap}
+process_counts <- function(data_file,type){
+ if(type=='single'){
+    oligos <- fread(data_file) %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
+        pivot_longer(cols=c(-oligo,-background,-cell),names_to='motif_group',values_to='motif') %>% 
+      group_by(oligo,background,cell) %>% filter(motif!="spacer") %>%
+        filter(n_distinct(motif)==1) %>% ungroup()
+  }
+  else if(type=="pair"){
+    oligos <- fread(data_file) %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
+      pivot_longer(cols=c(-oligo,-background,-cell),names_to='motif_group',values_to='motif') %>% 
+      group_by(oligo,background,cell) %>% filter(motif!="spacer") %>%
+      filter(n_distinct(motif)==2) %>% ungroup()
+  }
+  final <- fread(data_file) %>% filter(background=="synthetic", oligo %in% oligos$oligo| oligo=="spacer-spacer-spacer") %>%
+    rowwise() %>% mutate(num_na = sum(is.na(c(RNA1_log2fc, RNA2_log2fc, RNA3_log2fc)))) %>% filter(num_na < 2) %>% 
+    select(oligo, background, cell,RNA1_log2fc_adj, RNA2_log2fc_adj, RNA3_log2fc_adj) %>% 
+    pivot_longer(cols=c(-oligo,-background,-cell),names_to='sample_id',values_to='log2fc') %>%
+    filter(!is.na(log2fc)) %>% 
+    mutate(motif=oligo) %>%
+    separate_rows(motif,sep='-') %>% filter(motif!='spacer')
+  return(final)
+}
+
+monotypic_counts <- process_counts('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.file.tsv',type='single') %>% filter(cell=="Jurkat") %>%
+  mutate(motif=gsub("PCA_","",motif))
+ditypic_counts <- process_counts('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.file.tsv',type='pair') %>% filter(cell=="Jurkat") %>%
+  mutate(motif=gsub("PCA_","",motif))
+
+m1m2_mono <- monotypic_counts %>% group_by(cell,oligo) %>% filter(n_distinct(motif)==2) %>% mutate(motif_pair=paste(sort(unique(motif)),collapse = ';')) %>% ungroup() %>% 
+  group_by(motif_pair,cell) %>% summarise(mean=mean(log2fc,na.rm = TRUE)) %>% ungroup() %>% separate(motif_pair,into=c('m1','m2'),sep=';')
+m2m1_mono <- monotypic_counts %>% group_by(cell,oligo) %>% filter(n_distinct(motif)==2) %>% mutate(motif_pair=paste(sort(unique(motif)),collapse = ';')) %>% ungroup() %>% 
+  group_by(motif_pair,cell) %>% summarise(mean=mean(log2fc,na.rm = TRUE)) %>% ungroup() %>% separate(motif_pair,into=c('m2','m1'),sep=';')
+
+m1m2 <- ditypic_counts  %>% group_by(oligo,cell) %>% filter(n_distinct(motif)==2) %>% mutate(motif_pair=paste(sort(unique(motif)),collapse = ';')) %>% ungroup() %>% 
+  group_by(motif_pair,cell) %>% summarise(mean=mean(log2fc,na.rm = TRUE)) %>% ungroup() %>% separate(motif_pair,into=c('m1','m2'),sep=';')
+m2m1 <- ditypic_counts  %>% group_by(oligo,cell) %>% filter(n_distinct(motif)==2) %>% mutate(motif_pair=paste(sort(unique(motif)),collapse = ';')) %>% ungroup() %>% 
+  group_by(motif_pair,cell) %>% summarise(mean=mean(log2fc,na.rm = TRUE)) %>% ungroup() %>% separate(motif_pair,into=c('m2','m1'),sep=';')
+
+matrix <- rbind(m1m2,m2m1,m1m2_mono,m2m1_mono) %>% select(-cell) %>% pivot_wider(names_from='m2',values_from='mean',values_fill=0) %>% column_to_rownames(var='m1') 
+
+sig_matrix <- matrix("", nrow = nrow(matrix), ncol = ncol(matrix))
+rownames(sig_matrix) <- rownames(matrix)
+colnames(sig_matrix) <- colnames(matrix)
+paletteLength=40
+myColor <- colorRampPalette(c("#2166ac","white", "#b2182b"))(40)
+myBreaks <- c(seq(min(matrix), 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(matrix)/paletteLength, max(matrix), length.out=floor(paletteLength/2)))
+
+callback = function(hc, mat){
+  sv = svd(t(mat))$v[,c(2)]
+  dend = reorder(as.dendrogram(hc), wts = sv)
+  as.hclust(dend)
+}
+  
+pheatmap(matrix,color=myColor,breaks = myBreaks,cutree_rows = 3,cutree_cols=3,clustering_callback = callback)
+
+
+```
+
+Figure 5B
+```{r volcano,fig.width=10, fig.height=8}
+ditypic_results %>% 
+  mutate(motif_pair=gsub("PCA_","",motif_pair)) %>% 
+  ggplot(aes(x=pair_cohens,y=-log10(p_value),colour=interaction(cell,Significance),shape=Significance))+
+  geom_point(size=2,alpha=0.8)+
+  theme_bw()+
+  scale_x_continuous(limits = c(-max(abs((ditypic_results %>% filter(cell=="K562"))$pair_cohens))-0.5, 
+                                max(abs((ditypic_results %>% filter(cell=="K562"))$pair_cohens))+0.5), expand = c(0, 0)) +
+ scale_color_manual(values=c('#8cb6c3','#e2cc3f','grey80','grey80','#8cb6c3','#e2cc3f'))+
+  scale_shape_manual(values=c(21,21,19))+
+  geom_vline(xintercept = c(-0.5,0,0.5), linetype = "dashed", color = "grey70")+
+  geom_hline(yintercept=c(-log10(0.05/612)),linetype = "dashed", color = "grey70")+
+  geom_text_repel(data = filter(ditypic_results, Significance=="Synergistic") %>%  mutate(motif_pair=gsub("PCA_","",motif_pair)), aes(label=motif_pair), size = 3, max.overlaps = 20) +
+  labs(colour="Significance",shape="Significance")+
+  xlab("Cohen's D")+ ylab("-Log10(P-Value)")+
+  theme(panel.grid=element_blank(),plot.title = element_text(hjust=0.5),
+        legend.position='none')
+
+
+```
+
+
+Supplemental Figure
+```{r barplots,fig.width=8,fig.height=5}
+make_cooperative_plots <- function(c,ditypic_df,monotypic_df){
+  cooperative_plots <- list()
+  interactions <- ditypic_df %>% 
+    filter(Significance=="Synergistic",cell==c) %>% 
+    distinct(motif_pair,mean_log2fc_with_pair,se_with_pair,pair_cohens) %>%
+    arrange(desc(pair_cohens))
+
+  for(p in 1:nrow(interactions)){
+    pair <- interactions[p,]$motif_pair
+    motif1 <- str_split(pair,'-')[[1]][1]
+    motif2 <- str_split(pair,'-')[[1]][2]
+    
+    monotypic_expression <- monotypic_results %>% mutate(motif=paste(motif,orientation,sep='')) %>% 
+      filter(motif==motif1|motif==motif2,cell==c) %>%
+      distinct(motif,cell,mean_log2fc_with_motif,se_with_motif) %>%
+      rename('mean_log2fc'=mean_log2fc_with_motif,'se'=se_with_motif)
+    ditypic_expression <- ditypic_df %>%
+      filter(motif_pair==pair,cell==c)  %>%
+      distinct(motif_pair,cell,mean_log2fc_with_pair,se_with_pair) %>%
+      rename('mean_log2fc'=mean_log2fc_with_pair,'se'=se_with_pair,'motif'=motif_pair)
+  
+    if(c=="Jurkat"){
+      colours=c('#b8d4db','#6a98a3','#2f5e68')
+    }else{
+      colours=c('#f5d28b','#f1a34e','#d56e2f')
+    }
+    plot <- monotypic_expression %>%
+      rbind(ditypic_expression) %>% 
+       mutate(motif=gsub("PCA_","",motif),
+             motif=ifelse(grepl("-",motif),"Both Motifs",motif),
+             motif=fct_reorder(motif,abs(mean_log2fc))) %>% 
+      ggplot(aes(x = motif, y = mean_log2fc, fill = motif)) +
+      geom_bar(stat = "identity", color = "black") +
+      geom_errorbar(aes(ymin = mean_log2fc - se, ymax = mean_log2fc + se), width = 0.2) +
+      ylab("Mean Activity Score")+
+      xlab("")+
+      theme_minimal() +
+      theme(plot.title=element_text(hjust=0.5),legend.position = 'none')+
+      scale_fill_manual(values=colours)
+    cooperative_plots[[paste(p,c,sep='')]] <- plot
+  }
+  return(cooperative_plots)
+}
+
+  
+jurkat_cooperative_plots <- make_cooperative_plots("Jurkat",ditypic_results,monotypic_results)
+
+ggarrange(plotlist=jurkat_cooperative_plots,nrow = 3,ncol=3)
+```

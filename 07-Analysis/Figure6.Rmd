@@ -1,0 +1,238 @@
+---
+title: "Position Preferences"
+output: 
+  html_document:
+      keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+library(pheatmap)
+library(data.table)
+library(tidyverse)
+library(tidytext)
+library(ggrepel)
+library(rstatix)
+library(ggh4x)
+
+monotypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/monotypic.results.tsv')
+signif_motifs <- monotypic_results %>% mutate(motif_orientation=paste(motif,orientation,sep='')) %>% filter(signif=="Significant",cell=="Jurkat") %>% distinct(motif_orientation)
+```
+
+Figure 6A&B
+```{r pair_orders}
+additive <- c('PCA_AC0518rev;PCA_AC1141rev','FOXO1::ELK3fwd;PCA_AC0518rev','PCA_AC1205rev;POU6F1rev','PCA_AC2802rev;TCF7rev','FOXO1::ELK3rev;PCA_AC2802fwd','GATA3fwd;PCA_AC2802fwd')
+
+motif_sets <- ditypic_positions %>%
+  mutate(motif_pair = oligo) %>%
+  separate_rows(motif_pair, sep = '-') %>%
+  filter(motif_pair != 'spacer') %>%
+  group_by(oligo,cell) %>%
+  mutate(motif_set=paste(sort(unique(motif)),collapse=';'),motif_pair=gsub("-spacer|spacer-","",oligo)) %>% ungroup() %>% 
+  select(-position) %>% unique() 
+
+stats <- motif_sets %>%
+  group_by(motif_set,cell) %>% wilcox_test(log2fc_adj~motif_pair) %>% ungroup() %>%
+  distinct(cell,motif_set,p)
+
+t <- motif_sets %>%
+  group_by(motif_set,motif_pair,cell) %>% summarise(mean_log2fc=mean(log2fc_adj,na.rm=TRUE)) %>% ungroup() %>%
+  left_join(stats) %>%
+  group_by(motif_set,cell) %>%
+  mutate(order = ifelse(row_number() == 1, "Order1", "Order2"),
+        ratio = mean_log2fc[1] / mean_log2fc[2]) %>% ungroup() %>%
+  select(-motif_pair) %>% 
+  pivot_wider(names_from=order,values_from=mean_log2fc)
+
+
+t %>% filter(cell=="Jurkat")%>%
+  mutate(significance=ifelse((p< 0.05/612) & (abs(Order1/Order2)>2),"Significant","Not Significant"),
+         motif_set=gsub("PCA_","",motif_set))%>% 
+  ggplot(aes(x=Order1,y=Order2,colour=significance,shape=significance))+ 
+  geom_abline(linetype='dashed',colour='grey60')+ 
+  geom_point() + theme_bw()+
+  scale_colour_manual(values=c('grey80','#8cb6c3'))+
+  scale_shape_manual(values=c(21,19))+
+  geom_text_repel(aes(label = ifelse(significance=="Significant", motif_set, "")),size = 3, max.overlaps = 20)+
+  xlim(-3,3)+ylim(-3,3)+
+  ylab("Mean Activity Score\n(Order 2)")+
+  xlab("Mean Activity Score\n(Order 1)")+
+  theme(plot.title=element_text(hjust=0.5),
+        legend.position='none')
+
+t %>% filter(cell=="K562")%>%
+  mutate(significance=ifelse(p< 0.05/612,"Significant","Not Significant"),
+         motif_set=gsub("PCA_","",motif_set))%>% 
+  ggplot(aes(x=Order1,y=Order2,colour=significance,shape=significance))+ 
+  geom_abline(linetype='dashed',colour='grey60')+ 
+  geom_point() + theme_bw()+
+  scale_colour_manual(values=c('grey80','#e2cc3f'))+
+  scale_shape_manual(values=c(21,19))+
+  geom_text_repel(aes(label = ifelse(significance=="Significant", motif_set, "")),size = 3, max.overlaps = 20)+
+  xlim(-3,3)+ylim(-2,2)+
+  ylab("Mean Activity Score\n(Order 2)")+
+  xlab("Mean Activity Score\n(Order 1)")+
+  theme(plot.title=element_text(hjust=0.5),
+        legend.position='none')
+```
+
+Figure 6D
+```{r preference}
+t %>% 
+  filter(p< 0.05/612 & (abs(Order1/Order2)>2)) %>% 
+  mutate(motif=motif_set) %>% distinct(motif_set, motif,cell) %>%
+  separate_rows(motif,sep=';') %>% mutate(motif_type=ifelse(grepl("PCA_",motif),"Novel Motif","TFBS"),motif=gsub("PCA_","",motif)) %>% 
+  group_by(cell,motif,motif_type) %>% summarise(n=n_distinct(motif_set)) %>% ungroup() %>% 
+  ggplot(aes(x=motif,y=n,fill=cell))+ geom_bar(stat='identity') + facet_grid(.~motif_type,scale='free_x') + 
+  theme_bw() + theme(axis.text.x = element_text(angle=90,hjust=1,vjust=1))+ ylab("Number of Motif Pairs") + 
+  scale_fill_manual(values=c("#8cb6c3","#e2cc3f"))+xlab('')+ labs(fill="Cell Line")
+```
+
+Supplemental Figure
+```{r supplemental_processeing_order_pairs}
+myColor <- colorRampPalette(c("#4575b4", "white", "#d73027"))(10)
+
+ditypic_copies <- fread('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.tsv') %>% 
+  filter(background=="synthetic") %>%
+  select(oligo,m1,m1_orientation,m2,m2_orientation,m3,m3_orientation,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>%
+  mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
+         m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
+         m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),
+         oligo=paste(m1,m2,m3,sep='-'),
+         motif=oligo) %>% select(-m1,-m2,-m3,-m1_orientation,-m2_orientation,-m3_orientation) %>%
+  separate_rows(motif,sep='-') %>% select(cell,oligo,motif) %>% filter(motif!='spacer') %>% 
+  mutate(motif=gsub("fwd|rev","", motif)) %>% 
+  #only two motifs in an oligo, one copy each.
+  group_by(oligo,cell) %>% filter(n()==2) %>% ungroup()
+
+ditypic_positions <- fread('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.tsv') %>%
+  mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
+         m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
+         m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),
+         oligo=paste(m1,m2,m3,sep='-'),
+         motif=oligo) %>% 
+  select(cell,oligo,m1,m2,m3,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>% 
+  filter(background=='synthetic')  %>% 
+  pivot_longer(names_to = 'position',values_to='motif',cols = c(m1,m2,m3)) %>%
+  mutate(position = gsub('m', '', position)) %>%
+  pivot_longer(names_to = 'replicate',values_to='log2fc_adj',cols = c(RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj)) %>%  
+  select(-background,-replicate) %>% filter(!grepl("spacer",motif)) %>% filter(oligo %in% ditypic_copies$oligo)
+
+closest_farthest <- ditypic_positions %>% 
+  mutate(motif_pair=oligo) %>%
+  separate_rows(motif_pair,sep='-') %>% filter(motif_pair!='spacer')  %>% 
+  group_by(oligo,cell) %>% mutate(motif_pairs=paste(sort(unique(motif_pair)),collapse=';'),
+                             position_status = ifelse(position == min(position), "1st in Pair", "2nd in Pair")) %>% ungroup() %>% 
+  select(-motif_pair,-position) %>% unique()  %>% filter(!is.na(log2fc_adj))
+
+position_test <- closest_farthest %>% filter(!is.na(log2fc_adj),motif %in% signif_motifs$motif_orientation) %>%
+  group_by(motif,cell) %>% wilcox_test(log2fc_adj~position_status) %>% ungroup() %>%
+  select(motif,p,cell) %>% mutate(significance=ifelse(p < (0.05/nrow(signif_motifs)),"Significant","Not Significant"))
+
+jurkat_matrix <- closest_farthest %>%  filter(!is.na(log2fc_adj),motif %in% signif_motifs$motif_orientation) %>%
+  group_by(cell,motif,position_status) %>% 
+  summarise(mean_log2fc= mean(log2fc_adj, na.rm = TRUE),se_log2fc = sd(log2fc_adj, na.rm = TRUE) / sqrt(n())) %>% ungroup() %>%
+  left_join(position_test) %>% filter(cell=="Jurkat") %>% distinct(motif, position_status,mean_log2fc,p) %>% 
+  mutate(motif=gsub("PCA_","",motif)) %>% 
+  pivot_wider(names_from=position_status,values_from=mean_log2fc) %>%
+  arrange(p) %>% select(-p) %>% column_to_rownames(var='motif') %>% as.matrix()
+jurkat_Breaks <- c(seq(min(jurkat_matrix, na.rm = TRUE), 0, length.out = ceiling(10/2) + 1), 
+              seq(max(jurkat_matrix, na.rm = TRUE) / 10, max(jurkat_matrix, na.rm = TRUE), length.out = floor(10/2)))
+
+k562_matrix <- closest_farthest %>%  filter(!is.na(log2fc_adj),motif %in% signif_motifs$motif_orientation) %>% 
+  group_by(cell,motif,position_status) %>% 
+  summarise(mean_log2fc= mean(log2fc_adj, na.rm = TRUE),se_log2fc = sd(log2fc_adj, na.rm = TRUE) / sqrt(n())) %>% ungroup() %>%
+  left_join(position_test) %>% filter(cell=="K562") %>% distinct(motif, position_status,mean_log2fc,p) %>% 
+  mutate(motif=gsub("PCA_","",motif)) %>% 
+  pivot_wider(names_from=position_status,values_from=mean_log2fc) %>%
+  arrange(p) %>% select(-p) %>% column_to_rownames(var='motif') %>% as.matrix()
+k562_Breaks <- c(seq(min(k562_matrix, na.rm = TRUE), 0, length.out = ceiling(10/2) + 1), 
+              seq(max(k562_matrix, na.rm = TRUE) / 10, max(k562_matrix, na.rm = TRUE), length.out = floor(10/2)))
+
+
+```
+
+Supplemental 11A&B
+```{r S11}
+# PREFERRED POSITION FOR MOTIFS
+pair_means <- ditypic_positions %>%
+  mutate(motif_pair = oligo) %>%
+  separate_rows(motif_pair, sep = '-') %>%
+  filter(motif_pair != 'spacer') %>%
+  group_by(oligo,cell) %>%
+  mutate(motif_set=paste(sort(unique(motif)),collapse=';'),motif_pair=gsub("-spacer|spacer-","",oligo)) %>% unique() %>% 
+  select(-position,-motif) %>% 
+  group_by(motif_set,motif_pair,cell) %>% summarise(mean_log2fc=mean(log2fc_adj,na.rm=TRUE)) %>% ungroup()
+
+motif_order <- pair_means %>%
+  group_by(motif_set, cell) %>%
+  filter(abs(mean_log2fc) == max(abs(mean_log2fc))) %>%
+  separate(motif_pair, into = c('1st in Pair', '2nd in Pair'), sep = '-') %>%
+  pivot_longer(cols = c('1st in Pair', '2nd in Pair'), names_to = 'position', values_to = 'motif') %>%
+  filter(motif %in% signif_motifs$motif_orientation) %>%
+  mutate(motif=gsub("PCA_","",motif)) %>%
+  group_by(motif, position, cell) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  filter(cell == "Jurkat", position == '1st in Pair') %>%
+  arrange(n) %>%
+  mutate(motif = factor(motif, levels = unique(motif)))
+
+plot_data <- pair_means %>%
+  group_by(motif_set, cell) %>%
+  filter(abs(mean_log2fc) == max(abs(mean_log2fc))) %>%
+  separate(motif_pair, into = c('1st in Pair', '2nd in Pair'), sep = '-') %>%
+  pivot_longer(cols = c('1st in Pair', '2nd in Pair'), names_to = 'position', values_to = 'motif') %>%
+  group_by(motif, position, cell) %>%
+  summarise(n = n(), .groups = "drop") %>% ungroup() %>% 
+  filter(motif %in% signif_motifs$motif_orientation, cell=="Jurkat") %>% mutate(motif=gsub("PCA_","",motif)) %>%
+  mutate(motif = factor(motif, levels = levels(motif_order$motif)))
+
+# Plot
+plot_data %>%
+  ggplot(aes(y = fct_relevel(motif,levels=c('AC1141rev','BATF::JUNfwd','BATF::JUNrev',"AC0518fwd","AC0518rev","AC2802rev","AC2464rev")), x = n, fill = position)) +
+  geom_bar(stat = 'identity') +
+  theme_bw() + xlab('Number of Motif Pairs')+
+  labs(fill = "Preferred Position") +
+  scale_fill_manual(values = c('#9ecae1', '#4292c6')) +
+  geom_vline(xintercept = 16, linetype = 'dashed', colour = 'grey40')+
+  theme(axis.title.y = element_blank(),
+        legend.position = 'bottom')
+pheatmap(jurkat_matrix,breaks=jurkat_Breaks,color=myColor,cluster_rows = FALSE,cluster_cols = TRUE)
+
+
+pheatmap(k562_matrix,breaks=jurkat_Breaks,color=myColor,cluster_rows = FALSE,cluster_cols = TRUE)
+motif_order <- pair_means %>%
+  group_by(motif_set, cell) %>%
+  filter(abs(mean_log2fc) == max(abs(mean_log2fc))) %>%
+  separate(motif_pair, into = c('1st in Pair', '2nd in Pair'), sep = '-') %>%
+  pivot_longer(cols = c('1st in Pair', '2nd in Pair'), names_to = 'position', values_to = 'motif') %>%
+  filter(motif %in% signif_motifs$motif_orientation) %>%
+  mutate(motif=gsub("PCA_","",motif)) %>%
+  group_by(motif, position, cell) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  filter(cell == "K562", position == '1st in Pair') %>%
+  arrange(n) %>%
+  mutate(motif = factor(motif, levels = unique(motif)))
+
+plot_data <- pair_means %>%
+  group_by(motif_set, cell) %>%
+  filter(abs(mean_log2fc) == max(abs(mean_log2fc))) %>%
+  separate(motif_pair, into = c('1st in Pair', '2nd in Pair'), sep = '-') %>%
+  pivot_longer(cols = c('1st in Pair', '2nd in Pair'), names_to = 'position', values_to = 'motif') %>%
+  group_by(motif, position, cell) %>%
+  summarise(n = n(), .groups = "drop") %>% ungroup() %>% 
+  filter(motif %in% signif_motifs$motif_orientation, cell=="K562") %>% mutate(motif=gsub("PCA_","",motif)) %>%
+  mutate(motif = factor(motif, levels = levels(motif_order$motif)))
+
+# Plot
+plot_data %>%
+  ggplot(aes(y = fct_relevel(motif,levels=c('BATF::JUNfwd','AC1141rev',"AC0518rev","AC0518fwd",'BATF::JUNrev',"AC2802rev","AC2464rev")), x = n, fill = position)) +
+  geom_bar(stat = 'identity') +
+  theme_bw() + xlab('Number of Motif Pairs')+
+  labs(fill = "Preferred Position") +
+  scale_fill_manual(values = c('#9ecae1', '#4292c6')) +
+  geom_vline(xintercept = 16, linetype = 'dashed', colour = 'grey40')+
+  theme(axis.title.y = element_blank(),
+        legend.position = 'bottom')
+```
+
+

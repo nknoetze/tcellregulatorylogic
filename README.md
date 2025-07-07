@@ -20,7 +20,5 @@
         Process the DNA and RNA seq reads. When necessary, extracts the 10bp UMI and appends to the read name. Trims reads and removes adapters. maps reads to the oligo library. Only keep primary alignments, properly paired reads etc. Then filter to only keep read pairs where both reads have a perfect match to their respective oligo. Counts how many reads there are for each UMI. Final counts are de-duplicated
     >>01-counts
         Code to create the matrix file containing de-deuplicated, CPM normalised, and log2fc for the oligos across all samples. Only keep results for oligos where DNA_cpm > 0 and an RNA_cpm >0 for at least two of the three RNA samples. 
-
-
 >07-Analysis
     Code for the STARR-seq analyses.

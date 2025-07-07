@@ -54,11 +54,11 @@ gene_expression <- fread('/projects/nknoetze_prj/ocr_prj/data/median_expr_nobatc
 tcell_expressed_tfs <- fread('/projects/nknoetze_prj/references/annotations/tf_fantom/fantom5_tf_hg19_tcellexpressed.tsv')
 zoe_results <- '/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.tsv'
 izoe_results <- '/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.tsv'
-test <- results <- '/projects/nknoetze_prj/ocr_prj/framework_test/tcellspecific_singlemotifs_10k/test.tsv'
+
 processed_zoe_files <- process_data(zoe_results,expression_file=gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs)
 processed_izoe_files <- process_data(izoe_results,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs)
-processed_test_files <- process_data(test,expression_file = gene_expression,tcell_expressed_tf_file = tcell_expressed_tfs)
+
 
 fwrite(processed_zoe_files,'/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.significant.motifs.tsv',sep='\t',quote=FALSE)
 fwrite(processed_izoe_files,'/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.significant.motifs.tsv',sep='\t',quote=FALSE)
-fwrite(processed_test_files,'/projects/nknoetze_prj/ocr_prj/framework_test/tcellspecific_singlemotifs_10k/test.significant.motifs.tsv',sep='\t',quote=FALSE)
+

@@ -91,4 +91,4 @@ print('done finding expressed TFs')
 ###        WRITE FILES            ###
 ### ----------------------------- ###
 outfile <- paste(gsub('.txt|.tsv','',feature_file),'.',ocr_type,'.',motif_type,'.filtered.tsv',sep='')
-fwrite(expressed_comotifs,outfile,sep='\t',quote=FALSE)
+expressed_comotifs %>% filter(motif_type!='novel') %>% fwrite(outfile,sep='\t',quote=FALSE)

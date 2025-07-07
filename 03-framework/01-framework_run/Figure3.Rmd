@@ -10,8 +10,8 @@ library(data.table)
 library(pheatmap)
 library(ggupset)
 library(tidyverse)
-processed_zoe_files <- readRDS('../../../data/processed/03-framework/01-framework_run/results_231010.processedcomotif.tcellspecific.RDS')
-processed_izoe_files <- readRDS('../../../data/processed/03-framework/01-framework_run/results_231030.processedcomotif.bottomranked.RDS')
+processed_zoe_files <- readRDS('../../../data/processed/03-framework/01-framework_run/results_231010.processedcomotif.tcellspecific.tsv.gz')
+processed_izoe_files <- readRDS('../../../data/processed/03-framework/01-framework_run/results_231030.processedcomotif.bottomranked.tsv.gz')
 zoe_significant_pairs <- processed_zoe_files$results %>% filter(region_set!='all') %>%  
   mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific") 
 izoe_significant_pairs <- processed_izoe_files$results %>% filter(region_set!='all') %>%

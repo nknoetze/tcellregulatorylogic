@@ -31,7 +31,7 @@ rule filter_results:
 	input:
 		filtered_features=f"{outdir}""/{feature_file_name}.tsv"
 	params:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/expressed_tfs.R",
+		script="03_expressed_tfs.R",
 		tcell_tfs=expressed_tcell_tfs,
 		n_tfs=n_tf,
 		motif_type="{motif_type}",
@@ -50,7 +50,7 @@ rule get_nonoverlapping_sites:
 		filtered_features=f"{outdir}""/{feature_file_name}.{ocr_type}.{motif_type}.filtered.tsv",
 		tfbs_pos=f"{outdir}""/{feature_file_name}.tsv.fimo_comotif_geneCount+fimo_comotif_geneCount+{ocr_type}.RAW.featureLocations.tsv"
 	params:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/nonoverlapping_sites.R",
+		script="04_nonoverlapping_sites.R",
 		n_tfs=n_tf,
 		ocr_type="{ocr_type}",
 		n_cores=n_cores
@@ -87,7 +87,7 @@ rule rank_features:
 	input:
 		nonoverlapping_features=f"{outdir}""/{feature_file_name}.{ocr_type}.filtered.full.nonoverlapping.allsites.tsv"
 	params:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/rank.tfs.R",
+		script="05_rank_tfs.R",
 		ocr_type="{ocr_type}"
 	priority: 5
 	output:

@@ -37,8 +37,6 @@ ARCHETYPE_ENV=config["ARCHETYPE_ENV"]
 rule all:
     input:
         expand(os.path.join(WORKING_DIR,RUN_ID, "05_clustered_motifs", "{region_type}+win{window}+thresh{mismatch}_archetypes.meme"), region_type=region_types, window=windows, mismatch=mismatches)
-#        expand("~/.local/src/genome-tools/setup_complete")
-
 
 
 #############################
@@ -50,8 +48,7 @@ rule make_fasta:
         regions = REGIONS,
         genes = TARGET_GENES,
         ref_fasta = REF_FASTA,
-        script="/projects/nknoetze_prj/ocr_prj/novel_motifs_test/target_regions_to_fasta.py"
-        #script=os.path.join(workflow.basedir,"data/target_regions_to_fasta.py")
+        script="target_regions_to_fasta.py"
     conda: FRAMEWORK_ENV
     output:
         fasta = os.path.join(WORKING_DIR,RUN_ID,"00_ocr_seq","{region_type}+sequences.fasta")
@@ -71,7 +68,7 @@ rule run_kmercluster:
     output:
         dot = os.path.join(WORKING_DIR,RUN_ID,"01_kmer_clusters","{region_type}+win{window}+thresh{mismatch}.tsv")
     params:
-        script="/projects/nknoetze_prj/ocr_prj/novel_motifs_test/kmer_cluster_finder.py"
+        script="kmer_cluster_finder.py"
     shell:
         """python {params.script} --sequence {input.fasta} --window {wildcards.window} --mismatch {wildcards.mismatch} --output {output.dot} -v"""
 
@@ -87,7 +84,7 @@ rule generate_meme:
     output:
         meme = os.path.join(WORKING_DIR,RUN_ID,"02_meme","{region_type}+win{window}+thresh{mismatch}.meme.txt")
     params:
-        script="/projects/nknoetze_prj/ocr_prj/novel_motifs_test/kmer_clusters_to_meme.py"
+        script="kmer_clusters_to_meme.py"
     shell:
         """python {params.script} --kmer_clusters {input.dot} --meme_output {output.meme}"""
 
@@ -104,7 +101,7 @@ rule search_jaspar:
     output:
         tomtomdir = directory(os.path.join(WORKING_DIR,RUN_ID,"03_tomtom","tomtom_{region_type}+win{window}+thresh{mismatch}_tomtom"))
     params:
-        script="/projects/nknoetze_prj/ocr_prj/novel_motifs_test/kmer_clusters_to_meme.py"
+        script="kmer_clusters_to_meme.py"
     shell:
         """tomtom -o {output.tomtomdir} {input.meme} {input.db}"""
 
@@ -167,7 +164,7 @@ rule create_single_motif_pfms:
     output:
         pfm_dir = directory(os.path.join(WORKING_DIR,RUN_ID, "04_filtered_clusters", "{region_type}+win{window}+thresh{mismatch}_pfms"))
     params:
-        script="/projects/nknoetze_prj/ocr_prj/novel_motifs_test/meme2jaspar.py"
+        script="meme2jaspar.py"
     shell:
         "mkdir {output.pfm_dir} && python {params.script} {input.novel_meme} {output.pfm_dir}"
 
@@ -181,34 +178,17 @@ rule cluster_novel_motifs:
     shell:
         "tomtom -dist kullback -motif-pseudo 0.1 -text -min-overlap 1 {input.novel_meme} {input.novel_meme} > {output.motif_clustering}"
 
-# rule install_genome_tools:
-#     output:
-#         touch("~/.local/src/genome-tools/setup_complete")
-#     conda: ARCHETYPE_ENV
-#     shell:
-#         """
-#         module load git
-#         mkdir -p ~/.local/src && cd ~/.local/src
-#         git clone https://github.com/jvierstra/genome-tools.git
-#         cd genome-tools
-#         python setup.py install --user
-#         touch ~/.local/src/genome-tools/setup_complete
-#         """
-
 rule generate_archetypes:
     '''From clusters of novel motifs, make archetypic motif'''
     input:
-        #setup="~/.local/src/genome-tools/setup_complete",
         motif_clustering = rules.cluster_novel_motifs.output.motif_clustering,
         pfm_dir = rules.create_single_motif_pfms.output.pfm_dir
     conda: ARCHETYPE_ENV
     output:
-        #plot_dir = directory(os.path.join(WORKING_DIR,RUN_ID, "05_clustered_motifs", "{region_type}+win{window}+thresh{mismatch}_archetype-plots")),
         archetypes = os.path.join(WORKING_DIR,RUN_ID, "05_clustered_motifs", "{region_type}+win{window}+thresh{mismatch}_archetypes.uniprobe")
     params:
-        script="/projects/nknoetze_prj/ocr_prj/novel_motifs_test/motif_clustering_Workflow_v2.1beta-human_240503.py"
+        script="motif_clustering_Workflow_v2.1beta-human_240503.py"
     shell:
-        #"mkdir {output.plot_dir} && python {params.script} --clustered_motifs {input.motif_clustering} --pfm_dir {input.pfm_dir} --plot_dir {output.plot_dir} --output {output.archetypes}"
         "python {params.script} --clustered_motifs {input.motif_clustering} --pfm_dir {input.pfm_dir} --output {output.archetypes}"
 
 rule uniprobe2meme:

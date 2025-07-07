@@ -13,14 +13,14 @@ library(pheatmap)
 library(ggh4x)
 library(ggpubr)
 
-ditypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/ditypic.results.tsv') %>%
+ditypic_results <- fread('ditypic.results.tsv') %>%
   mutate(Significance=case_when(pair_signif=="Not Significant" ~ "No Effect",
                                 pair_signif=="Significant" & interaction_signif=="Potential Interaction" & synergistic=="Synergistic" ~"Synergistic",
                                 pair_signif=="Significant" & interaction_signif=="Potential Interaction"& synergistic!="Synergistic" ~ "No Synergy",
                                 pair_signif=="Significant" & interaction_signif=="No Interaction" ~ "No Synergy",
                                 TRUE ~ "PICKLE"))
 
-monotypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/monotypic.results.tsv') 
+monotypic_results <- fread('monotypic.results.tsv') 
 sig_motifs <- monotypic_results %>% filter(cell=="Jurkat",signif=="Significant") %>% unique()
 ```
 
@@ -50,9 +50,9 @@ process_counts <- function(data_file,type){
   return(final)
 }
 
-monotypic_counts <- process_counts('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.file.tsv',type='single') %>% filter(cell=="Jurkat") %>%
+monotypic_counts <- process_counts('../candidate.master.count.file.tsv',type='single') %>% filter(cell=="Jurkat") %>%
   mutate(motif=gsub("PCA_","",motif))
-ditypic_counts <- process_counts('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.file.tsv',type='pair') %>% filter(cell=="Jurkat") %>%
+ditypic_counts <- process_counts('../candidate.master.count.file.tsv',type='pair') %>% filter(cell=="Jurkat") %>%
   mutate(motif=gsub("PCA_","",motif))
 
 m1m2_mono <- monotypic_counts %>% group_by(cell,oligo) %>% filter(n_distinct(motif)==2) %>% mutate(motif_pair=paste(sort(unique(motif)),collapse = ';')) %>% ungroup() %>% 

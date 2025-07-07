@@ -14,7 +14,7 @@ library(ggrepel)
 library(rstatix)
 library(ggh4x)
 
-monotypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/monotypic.results.tsv')
+monotypic_results <- fread('monotypic.results.tsv')
 signif_motifs <- monotypic_results %>% mutate(motif_orientation=paste(motif,orientation,sep='')) %>% filter(signif=="Significant",cell=="Jurkat") %>% distinct(motif_orientation)
 ```
 
@@ -91,7 +91,7 @@ Supplemental Figure
 ```{r supplemental_processeing_order_pairs}
 myColor <- colorRampPalette(c("#4575b4", "white", "#d73027"))(10)
 
-ditypic_copies <- fread('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.tsv') %>% 
+ditypic_copies <- fread('../candidate.master.count.file.ditypic.tsv') %>% 
   filter(background=="synthetic") %>%
   select(oligo,m1,m1_orientation,m2,m2_orientation,m3,m3_orientation,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>%
   mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
@@ -104,7 +104,7 @@ ditypic_copies <- fread('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/
   #only two motifs in an oligo, one copy each.
   group_by(oligo,cell) %>% filter(n()==2) %>% ungroup()
 
-ditypic_positions <- fread('/projects/holtlab_prj/23_miniP/data/processed/STARRseq/candidate.master.count.file.ditypic.tsv') %>%
+ditypic_positions <- fread('../candidate.master.count.file.ditypic.tsv') %>%
   mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
          m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
          m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),

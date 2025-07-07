@@ -56,7 +56,7 @@ rule all:
 
 rule run_star:
     input:
-        script="/projects/nknoetze_prj/promoter_prj/src/gtex-v7pipeline/gtex_runstar.py",
+        script="gtex_runstar.py",
         fastq1=f"{trimmed_fastqs}""/{sra_sample}_1.trimmed.fastq.gz",
         index=star_index
     params:
@@ -86,7 +86,7 @@ rule move_star:
 
 rule run_rsem:
     input:
-        script="/projects/nknoetze_prj/promoter_prj/src/gtex-v7pipeline/gtex_runrsem.py",
+        script="gtex_runrsem.py",
         bam=f"{star_out_dir_1}""/{sra_sample}.Aligned.toTranscriptome.out.bam",
         reference_index=rsem_index
     params:
@@ -149,7 +149,7 @@ rule get_effective_lengths:
 
 rule generate_raw_counts_matrix:
     input:
-        script='/projects/nknoetze_prj/promoter_prj/src/data/sra.and.dice.generate.matrix.R',
+        script='sra.and.dice.generate.matrix.R',
         gencode=gencode,
         metadata_file=master_metadata_file,
         dice_rsem_files=dice_rsem_files,
@@ -171,7 +171,7 @@ rule generate_raw_counts_matrix:
 
 rule sf_normalisation:
     input:
-        script="/projects/nknoetze_prj/promoter_prj/src/data/sf.matrix.normalisation.R",
+        script="sf.matrix.normalisation.R",
         counts1=f"{raw_counts_out_dir_2}/sra.dice.counts.raw.tsv.gz",
         counts2=f"{corrected_matrices_out_dir_3}/""sra.dice.counts.batchcorr.tsv.gz",
         metadata=master_metadata_file
@@ -188,7 +188,7 @@ rule sf_normalisation:
 
 rule genelength_normalisation:
     input:
-        script="/projects/nknoetze_prj/promoter_prj/src/data/effective.gene.length.normalisation.py",
+        script="effective.gene.length.normalisation.py",
         counts_matrix=f"{normalised_counts_out_dir_4}/""sra.dice.counts.{counts_file_prefix}.sf.adj.tsv.gz",
         metadata=master_metadata_file,
         effective_lengths=f"{rsem_final_out_dir_1}""/dice_sra_effective_lengths.tsv"

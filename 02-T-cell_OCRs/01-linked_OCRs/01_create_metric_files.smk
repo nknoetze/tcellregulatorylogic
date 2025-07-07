@@ -34,7 +34,7 @@ rule all:
 # # # --------------------------------------------------------------
 rule annotate_ocrs:
 	input:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/annotate.regions.R"
+		script="02_annotate_regions.R"
 	params:
 		file_to_annotate=f"{filtered_ocr_file_dir}""/{filtered_ocr_data_name}_tidy.tsv",
 		gencode=gencode,
@@ -52,7 +52,7 @@ rule annotate_ocrs:
 # # # --------------------------------------------------------------
 rule annotate_hic:
 	input:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/annotate.hic.bins.R"
+		script="03_annotate_hic_bins.R"
 	params:
 		interaction_file=f"{interaction_dir}""/{bin_size}/{merge_param}/DICE_interactions_merged_tidy.tsv",
 		gencode=gencode,
@@ -68,7 +68,7 @@ rule annotate_hic:
 # # # --------------------------------------------------------------
 rule annotate_unmerged_hic:
 	input:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/annotate.hic.bins.R"
+		script="03_annotate_hic_bins.R"
 	params:
 		interaction_file=f"{interaction_dir}""/{bin_size}/DICE_interactions_tidy.tsv",
 		gencode=gencode,
@@ -103,7 +103,7 @@ rule link_ocrs:
 		annotated_interaction_file=f"{interaction_dir}/""{bin_size}/{merge_param}/interactions_tss_within_tidy.tsv",
 		gene_file=f"{filtered_gene_file_dir}""/ranked_list.tsv"
 	params:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/pull.ocrs.R",
+		script="05_pull_ocrs.R",
 		gencode=gencode,
 		outdir=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/"
 	output:
@@ -119,7 +119,7 @@ rule create_metric_files:
 	input:
 		linked_ocrs=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/pulled_ocrs_master_by_gene.tsv"
 	params:
-		script="/projects/nknoetze_prj/ocr_prj/src/tcell_ocr_prj/data/create.metric.files.R",
+		script="06_create_metric_files.R",
 		gencode=gencode,
 		gene_file=gene_list,
 		outdir=f"{pulled_ocrs_out_dir_1}/""{filtered_ocr_data_name}/{bin_size}/merged_interactions/{merge_param}/tss_within/"

@@ -118,7 +118,7 @@ final <- cbind(df1,df2)
 
 
 #MAKE SURE FILES ONLY CONTAINS OLIGOS WITH LOG2FC FOR 2+ REPLICATES FOR A GIVEN CELL TYPE
-fwrite(final,'/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/candidate.master.count.file.tsv',sep='\t',quote=FALSE)  
+fwrite(final,'candidate.master.count.file.tsv',sep='\t',quote=FALSE)  
 # monotypic <- final %>% select(oligo,background,cell, m1,m2,m3) %>% filter(background!="strong") %>%
 #   pivot_longer(cols=c(-oligo,-background,-cell)) %>% group_by(oligo,background,cell) %>% filter(value!="spacer") %>% 
 #   filter(n_distinct(value)==1) %>% ungroup()

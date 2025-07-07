@@ -64,24 +64,7 @@ process_data <- function(results_file,expression_file,tcell_expressed_tf_file,fe
     mutate(cell_group=ifelse(cell_type %in% tcells,'T-cells','Non-T cells'),
            region_set=str_to_title(region_set))
   
-  #get the percent of t-cell subtypes and non-tcell cell types that express 
-  #tfs for a given motif.
-  percent_expressed_motifs_df <- expressed_comotifs_df %>% 
-    group_by(feature,cell_group) %>% mutate(n_celltype=n_distinct(cell_type)) %>% ungroup() %>% 
-    select(-cell_type,-value) %>% unique() %>% 
-    pivot_wider(names_from=cell_group,values_from=n_celltype) %>% 
-    mutate(`T Cell`=(`T-cells`/11)*100,`Non-T Cell`=(`Non-T cells`/13)*100) %>%
-    replace(is.na(.), 0)
-  
-  #get stats. lots of results, so we can do the t-test for co-motifs
-  stat.test_df <- percent_expressed_motifs_df %>% select(-`T-cells`,-`Non-T cells`) %>%
-    pivot_longer(cols=c(`T Cell`,`Non-T Cell`), names_to="variable",values_to='value')%>% 
-    group_by(region_set,motif_type) %>%
-    t_test(value ~ variable, paired=FALSE) %>%
-    adjust_pvalue(method='hochberg') %>%
-    add_significance("p.adj") %>% ungroup()
-  
-  return(list(results=results_df, expressed_comotifs = expressed_comotifs_df,percent_expressed_motifs=percent_expressed_motifs_df,stat.test=stat.test_df)) 
+  return(list(results=results_df, expressed_comotifs = expressed_comotifs_df)) 
 }
 
 ### ----------------------------- ###

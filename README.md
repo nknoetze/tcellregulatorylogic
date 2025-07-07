@@ -22,3 +22,5 @@
         Code to create the matrix file containing de-deuplicated, CPM normalised, and log2fc for the oligos across all samples. Only keep results for oligos where DNA_cpm > 0 and an RNA_cpm >0 for at least two of the three RNA samples. 
 
 
+>07-Analysis
+    Code for the STARR-seq analyses.

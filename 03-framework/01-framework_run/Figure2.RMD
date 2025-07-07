@@ -11,8 +11,8 @@ library(ggupset)
 library(tidyverse)
 
 
-zoe_signifcant_motifs <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.significant.motifs.tsv') %>% filter(region_set!='all') %>% mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific")
-izoe_significant_motifs <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.significant.motifs.tsv') %>% filter(region_set!='all') %>%
+zoe_signifcant_motifs <- fread('../../../data/processed/03-framework/01-framework_run/results_231025.significant.singlemotifs.tcellspecific.tsv') %>% filter(region_set!='all') %>% mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific")
+izoe_significant_motifs <- fread('../../../data/processed/03-framework/01-framework_run/results_231028.significant.singlemotifs.bottomranked.tsv') %>% filter(region_set!='all') %>%
   mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"), gene_set="Bottom-Ranked") 
 ```
 

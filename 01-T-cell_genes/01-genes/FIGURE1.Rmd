@@ -15,7 +15,7 @@ library(enrichR)
 options(scipen=999)
 
 # Read in the median expression for each gene by cell subtype
-ranked_pc_filtered <- fread('/projects/nknoetze_prj/ocr_prj/data/processed/gene_lists/ranked_gene_list_missingocrgenes_removedv2.tsv')
+ranked_pc_filtered <- fread('../../../data/processed/ranked_gene_list_missingocrgenes_removedv2.tsv')
 ```
 
 ```{r expr_heatmap,fig_width=16.5,fig_height=11}

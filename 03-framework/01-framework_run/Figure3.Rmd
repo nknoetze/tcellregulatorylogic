@@ -10,17 +10,15 @@ library(data.table)
 library(pheatmap)
 library(ggupset)
 library(tidyverse)
-processed_zoe_files <- readRDS('/projects/holtlab_prj/23_miniP/data/framework_runs/OCR0043SB/results_231010.processedcomotif.zoe.RDS')
-processed_izoe_files <- readRDS('/projects/holtlab_prj/23_miniP/data/framework_runs/OCR0046SB/results_231030.processedcomotif.izoe.RDS')
+processed_zoe_files <- readRDS('../../../data/processed/03-framework/01-framework_run/results_231010.processedcomotif.tcellspecific.RDS')
+processed_izoe_files <- readRDS('../../../data/processed/03-framework/01-framework_run/results_231030.processedcomotif.bottomranked.RDS')
 zoe_significant_pairs <- processed_zoe_files$results %>% filter(region_set!='all') %>%  
   mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific") 
 izoe_significant_pairs <- processed_izoe_files$results %>% filter(region_set!='all') %>%
   mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="Bottom-Ranked") 
 
 #single motif results
-zoe_signifcant_motifs <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/ZoE_single+allbutmotifs_10k/results_231025.significant.motifs.tsv') %>% filter(region_set!='all') %>% mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific")
-izoe_significant_motifs <- fread('/projects/sbrown_prj/220318_DI/data/processed/tcell_ocr_metrics/iZoE_single+allbutmotifs_10k/results_231028.significant.motifs.tsv') %>% filter(region_set!='all') %>%
-  mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"), gene_set="Bottom-Ranked") 
+zoe_signifcant_motifs <- fread('../../../data/processed/03-framework/01-framework_run/results_231025.significant.singlemotifs.tcellspecific.tsv') %>% filter(region_set!='all') %>% mutate(region_set=ifelse(region_set=='non-promoter',"Distal","Proximal"),gene_set="T-cell-specific")
 ```
 
 

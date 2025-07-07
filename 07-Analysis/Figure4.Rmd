@@ -12,7 +12,7 @@ library(tidyverse)
 library(ggrepel)
 library(tidytext)
 
-monotypic_results <- fread('/projects/nknoetze_prj/ocr_prj/results/test_run/STARR-seq/monotypic.results.tsv')
+monotypic_results <- fread('../../../data/processed/07-Analysis/monotypic.results.tsv')
 monotypic_stats <- monotypic_results %>% distinct(cell,motif,orientation,signif,motif_cohens,p_value)
 
 ```

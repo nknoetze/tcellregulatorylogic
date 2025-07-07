@@ -14,8 +14,34 @@ library(ggrepel)
 library(rstatix)
 library(ggh4x)
 
-monotypic_results <- fread('monotypic.results.tsv')
+monotypic_results <- fread('../../../data/processed/07-Analysis/monotypic.results.tsv')
 signif_motifs <- monotypic_results %>% mutate(motif_orientation=paste(motif,orientation,sep='')) %>% filter(signif=="Significant",cell=="Jurkat") %>% distinct(motif_orientation)
+
+ditypic_copies <- fread('../../../data/processed/07-Analysis/ditypic.results.tsv') %>% 
+  filter(background=="synthetic") %>%
+  select(oligo,m1,m1_orientation,m2,m2_orientation,m3,m3_orientation,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>%
+  mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
+         m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
+         m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),
+         oligo=paste(m1,m2,m3,sep='-'),
+         motif=oligo) %>% select(-m1,-m2,-m3,-m1_orientation,-m2_orientation,-m3_orientation) %>%
+  separate_rows(motif,sep='-') %>% select(cell,oligo,motif) %>% filter(motif!='spacer') %>% 
+  mutate(motif=gsub("fwd|rev","", motif)) %>% 
+  #only two motifs in an oligo, one copy each.
+  group_by(oligo,cell) %>% filter(n()==2) %>% ungroup()
+
+ditypic_positions <- fread('../../../data/processed/07-Analysis/ditypic.results.tsv') %>%
+  mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
+         m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
+         m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),
+         oligo=paste(m1,m2,m3,sep='-'),
+         motif=oligo) %>% 
+  select(cell,oligo,m1,m2,m3,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>% 
+  filter(background=='synthetic')  %>% 
+  pivot_longer(names_to = 'position',values_to='motif',cols = c(m1,m2,m3)) %>%
+  mutate(position = gsub('m', '', position)) %>%
+  pivot_longer(names_to = 'replicate',values_to='log2fc_adj',cols = c(RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj)) %>%  
+  select(-background,-replicate) %>% filter(!grepl("spacer",motif)) %>% filter(oligo %in% ditypic_copies$oligo)
 ```
 
 Figure 6A&B
@@ -90,32 +116,6 @@ t %>%
 Supplemental Figure
 ```{r supplemental_processeing_order_pairs}
 myColor <- colorRampPalette(c("#4575b4", "white", "#d73027"))(10)
-
-ditypic_copies <- fread('../candidate.master.count.file.ditypic.tsv') %>% 
-  filter(background=="synthetic") %>%
-  select(oligo,m1,m1_orientation,m2,m2_orientation,m3,m3_orientation,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>%
-  mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
-         m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
-         m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),
-         oligo=paste(m1,m2,m3,sep='-'),
-         motif=oligo) %>% select(-m1,-m2,-m3,-m1_orientation,-m2_orientation,-m3_orientation) %>%
-  separate_rows(motif,sep='-') %>% select(cell,oligo,motif) %>% filter(motif!='spacer') %>% 
-  mutate(motif=gsub("fwd|rev","", motif)) %>% 
-  #only two motifs in an oligo, one copy each.
-  group_by(oligo,cell) %>% filter(n()==2) %>% ungroup()
-
-ditypic_positions <- fread('../candidate.master.count.file.ditypic.tsv') %>%
-  mutate(m1=ifelse(m1!='spacer',paste(m1,m1_orientation,sep=''),m1),
-         m2=ifelse(m2!='spacer',paste(m2,m2_orientation,sep=''),m2),
-         m3=ifelse(m3!='spacer',paste(m3,m3_orientation,sep=''),m3),
-         oligo=paste(m1,m2,m3,sep='-'),
-         motif=oligo) %>% 
-  select(cell,oligo,m1,m2,m3,background,cell,RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj) %>% 
-  filter(background=='synthetic')  %>% 
-  pivot_longer(names_to = 'position',values_to='motif',cols = c(m1,m2,m3)) %>%
-  mutate(position = gsub('m', '', position)) %>%
-  pivot_longer(names_to = 'replicate',values_to='log2fc_adj',cols = c(RNA1_log2fc_adj,RNA2_log2fc_adj,RNA3_log2fc_adj)) %>%  
-  select(-background,-replicate) %>% filter(!grepl("spacer",motif)) %>% filter(oligo %in% ditypic_copies$oligo)
 
 closest_farthest <- ditypic_positions %>% 
   mutate(motif_pair=oligo) %>%

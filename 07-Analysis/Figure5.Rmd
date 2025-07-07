@@ -13,14 +13,14 @@ library(pheatmap)
 library(ggh4x)
 library(ggpubr)
 
-ditypic_results <- fread('ditypic.results.tsv') %>%
+ditypic_results <- fread('../../../data/processed/07-Analysis/ditypic.results.tsv') %>%
   mutate(Significance=case_when(pair_signif=="Not Significant" ~ "No Effect",
                                 pair_signif=="Significant" & interaction_signif=="Potential Interaction" & synergistic=="Synergistic" ~"Synergistic",
                                 pair_signif=="Significant" & interaction_signif=="Potential Interaction"& synergistic!="Synergistic" ~ "No Synergy",
                                 pair_signif=="Significant" & interaction_signif=="No Interaction" ~ "No Synergy",
                                 TRUE ~ "PICKLE"))
 
-monotypic_results <- fread('monotypic.results.tsv') 
+monotypic_results <- fread('../../../data/processed/07-Analysis/monotypic.results.tsv') 
 sig_motifs <- monotypic_results %>% filter(cell=="Jurkat",signif=="Significant") %>% unique()
 ```
 
